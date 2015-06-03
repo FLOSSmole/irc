@@ -26,7 +26,7 @@
 # > perl 2parseUbuntuLogs.pl <datasource_id> 
 #
 # example usage:
-# > perl 2parseUbuntuIRCLogs.pl xxxx 
+# > perl 2parseUbuntuIRCLogs.pl 51244 
 #
 # purpose: 
 # open each IRC log in the directory, parse out the interesting bits
@@ -45,7 +45,7 @@ my $forge_id = 43;
 if ($datasource_id)
 {
 	# connect to db (once at local grid6, and once at Syracuse)
-	# dsn takes the format of "DBI:mysql:ossmole_merged:local.host"
+	# dsn takes the format of "DBI:mysql:ossmole_merged:grid6.cs.elon.edu"
 	my $dsn1 = "DBI:mysql:ossmole_merged:local.host";
 	my $dbh1 = DBI->connect($dsn1, "user", "pass", {RaiseError=>1});
 	
@@ -147,8 +147,8 @@ sub parseFile($dbh2, $dbh3, $ds, $fileLoc)
         {
             $type = "system";
             $line_message = $1;
-            $timelog = "";
-            $send_user = "";
+            $timelog = undef;
+            $send_user = undef;
         }  
     	
         #print "inserting row $linenum for $datelog ($send_user, $timelog, [" . substr($line_message,0,10) . "]\n";
@@ -197,5 +197,4 @@ sub parseFile($dbh2, $dbh3, $ds, $fileLoc)
             $insert3->finish();
         } 
     }
-}	# sub
-		
+}
