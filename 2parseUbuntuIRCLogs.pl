@@ -113,7 +113,7 @@ sub parseFile($dbh2, $dbh3, $ds, $fileLoc)
     
     # open the file
     print "working on file: $p_fileLoc ($datelog)\n";
-    open (FILE, $p_fileLoc) || die "can't open $p_fileLoc: $!\n";
+    open (FILE, $p_fileLoc) || print "can't open $p_fileLoc: $!\n";
     
     my $linenum = 0;
     while(my $line = <FILE>)  
