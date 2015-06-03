@@ -138,7 +138,6 @@ sub parseFile($dbh2, $dbh3, $ds, $fileLoc)
 		foreach my $li (@lis)
 		{
 			my $send_user = "";
-			my $timelog = "";
 			my $line_message = "";
 			my $type = "";
 			# here is the pattern
