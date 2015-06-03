@@ -144,11 +144,11 @@ sub parseFile($dbh2, $dbh3, $ds, $fileLoc)
 			#<li class="le" rel="frege"><a href="#1462000" name="1462000">#</a> <span style="color:#481e7c;8" class="username" rel="frege">&lt;frege&gt;</span> I have a south question </li>
 			if ($li =~ m{<li class=\"le\" rel=\"(.*?)\">(.*?)name=\"(.*?)\">(.*?)</span>(.*?)$}s)
 			{
-				my $send_user = $1;
+				$send_user     = $1;
 				my $junk2      = $2;
 				my $line_num   = $3;
 				my $junk4      = $4;
-				my $line_message = $5;
+				$line_message  = $5;
 
 				# clean up html
 				my $clean_line_message = decode_entities($line_message);
