@@ -159,7 +159,7 @@ sub grabFiles($dbh1, $dbh2, $datasource_id, $urlstem, $date_to_start)
 		  or die "Couldn't execute statement on LOCAL: " . $insertQuery1->errstr;
 		$insertQuery1->finish();
         #=====
-        # SYR
+        # REMOTE
         #=====
 		my $insertQuery2 = $p_dbh2->prepare(qq{INSERT IGNORE INTO ossmole_merged.datasources
 						(datasource_id,
@@ -173,7 +173,7 @@ sub grabFiles($dbh1, $dbh2, $datasource_id, $urlstem, $date_to_start)
 						VALUES (?,?,?,now(),'msquire\@elon.edu',?,now(),now())});
 	
 		$insertQuery2->execute($newds, $forge_id, 'Django IRC '. $yyyy.$mm3{$mm}.$dd, $saveLoc)
-		  or die "Couldn't execute statement on SYR: " . $insertQuery2->errstr;
+		  or die "Couldn't execute statement on REMOTE: " . $insertQuery2->errstr;
 		$insertQuery2->finish();
         
         
