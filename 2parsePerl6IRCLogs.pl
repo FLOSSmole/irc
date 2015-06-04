@@ -44,41 +44,41 @@ my $forge_id = 65;
 
 if ($datasource_id)
 {
-	# connect to db (once at local, and once at remote)
-	# dsn takes the format of "DBI:mysql:ossmole_merged:local.host"
-	my $dsn1 = "DBI:mysql:ossmole_merged:local.host";
-	my $dbh1 = DBI->connect($dsn1, "user", "pass", {RaiseError=>1});
-	
-	my $dsn2 = "DBI:mysql:irc:local.host";
-	my $dbh2 = DBI->connect($dsn2, "user", "pass", {RaiseError=>1});
-	
-	my $dsn3 = "DBI:mysql:irc:remote.host";
-	my $dbh3 = DBI->connect($dsn3, "user", "pass", {RaiseError=>1});
-	
-	# get the file list from the 'comments' field in the datasources table
-	my $sth1 = $dbh1->prepare(qq{select datasource_id, comments 
-		from ossmole_merged.datasources 
-		where datasource_id >= ? 
-		and forge_id=?});
+    # connect to db (once at local , and once at remote)
+    # dsn takes the format of "DBI:mysql:ossmole_merged:local.host"
+    my $dsn1 = "DBI:mysql:ossmole_merged:local.host";
+    my $dbh1 = DBI->connect($dsn1, "user", "pass", {RaiseError=>1});
+    
+    my $dsn2 = "DBI:mysql:irc:local.host";
+    my $dbh2 = DBI->connect($dsn2, "user", "pass", {RaiseError=>1});
+    
+    my $dsn3 = "DBI:mysql:irc:remote.host";
+    my $dbh3 = DBI->connect($dsn3, "user", "pass", {RaiseError=>1});
+    
+    # get the file list from the 'comments' field in the datasources table
+    my $sth1 = $dbh1->prepare(qq{select datasource_id, comments 
+        from ossmole_merged.datasources 
+        where datasource_id >= ? 
+        and forge_id=?});
     $sth1->execute($datasource_id, $forge_id);
     my $filesInDB = $sth1->fetchall_arrayref;
     $sth1->finish();
 
-	foreach my $row (@$filesInDB) 
+    foreach my $row (@$filesInDB) 
     {
         my ($ds, $fileLoc) = @$row;
         print "==================\n";
         parseFile($dbh2, $dbh3, $ds, $fileLoc);
-    }   	
-	
-	$dbh1->disconnect(); 
-	$dbh2->disconnect();
-	$dbh3->disconnect();
+    }       
+    
+    $dbh1->disconnect(); 
+    $dbh2->disconnect();
+    $dbh3->disconnect();
 }
 else
 {
-	print "You need both a datasource_id and a date to start on your commandline.";
-	exit;
+    print "You need both a datasource_id and a date to start on your commandline.";
+    exit;
 }
 
 # --------------------------------------------------
@@ -107,7 +107,7 @@ sub parseFile($dbh2, $dbh3, $ds, $fileLoc)
         
         if ($tempdate =~ m{^(\d\d\d\d)(\d\d)(\d\d)}s)
         {
-        	$datelog = $1 . "-" . $2 . "-" . $3;
+            $datelog = $1 . "-" . $2 . "-" . $3;
         }
     }
     
@@ -116,125 +116,129 @@ sub parseFile($dbh2, $dbh3, $ds, $fileLoc)
     open (FILE, $p_fileLoc);
     undef $/;
     my $filestring = <FILE>;
-	my $line_num = 0;
-	
-	# the perl6 data is in an html table
-	# (there's a plaintext version but it only has mention & action, not system messages) 
-	if ($filestring =~ m{<table id=\"log\"(.*?)<\/table>}s)
-	{
-		my $table = $1;
-		my @trs = split(/<\/tr>/, $table);
-		foreach my $tr (@trs)
-		{
-			my $send_user = "";
-			my $timelog = "";
-			my $line_message = "";
-			my $type = "";
-			$line_num++;
-			
-			# here is the pattern for a system message:
-			#<tr id="id_l2" class="new special dark">
-			#<td class="time" id="i_-799999"><a href="/perl6/2005-02-26#i_-799999">13:45</a></td>
-			#<td style="color: 0" class="nick"></td>
-			#<td class="msg &#39;&#39;">ilogger starts logging <a href="/perl6/today">#perl6</a> at Sat Feb 26 13:45:34 2005</td>
-			#</tr>
-			
-			# here is the pattern for a regular message:
-			#<tr id="id_l4" class="new nick nick_feb">
-			#<td class="time" id="i_-799997"><a href="/perl6/2005-02-26#i_-799997">13:46</a></td>
-			#<td style="color: #04000e" class="nick">feb</td>
-			#<td class="msg &#39;&#39;">autrijus: you're welcome</td>
-			#</tr>
+    my $line_num = 0;
+    
+    # the perl6 data is in an html table
+    # (there's a plaintext version but it only has mention & action, not system messages) 
+    if ($filestring =~ m{<table id=\"log\"(.*?)<\/table>}s)
+    {
+        my $table = $1;
+        my @trs = split(/<\/tr>/, $table);
+        foreach my $tr (@trs)
+        {
+            my $send_user = "";
+            my $timelog = "";
+            my $line_message = "";
+            my $type = "";
+            $line_num++;
+            
+            # here is the pattern for a system message:
+            #<tr id="id_l2" class="new special dark">
+            #<td class="time" id="i_-799999"><a href="/perl6/2005-02-26#i_-799999">13:45</a></td>
+            #<td style="color: 0" class="nick"></td>
+            #<td class="msg &#39;&#39;">ilogger starts logging <a href="/perl6/today">#perl6</a> at Sat Feb 26 13:45:34 2005</td>
+            #</tr>
+            
+            # here is the pattern for a regular message:
+            #<tr id="id_l4" class="new nick nick_feb">
+            #<td class="time" id="i_-799997"><a href="/perl6/2005-02-26#i_-799997">13:46</a></td>
+            #<td style="color: #04000e" class="nick">feb</td>
+            #<td class="msg &#39;&#39;">autrijus: you're welcome</td>
+            #</tr>
 
-			# here is the pattern for an action message:
-			#<tr id="id_l15" class="new nick nick_Odin- dark">
-			#<td class="time" id="i_-799986"><a href="/perl6/2005-02-26#i_-799986">13:55</a></td>
-			#<td style="color: #010002" class="nick">* Odin-</td>
-			#<td class="msg act &#39;&#39;">places a sane-o-meter on the channel, wondering if it'll score above zero.</td>
-			#</tr>
-			
-			# first case: system message (blank nick td)
-			if ($tr =~ m{class\=\"nick\"\>\<\/td\>}s)
-			{
-				$send_user = undef;
-				$type = "system";
-			}
-			# second case: regular message
-			elsif($tr =~ m{\<td class\=\"msg \&}s)
-			{
-				$type = "message";
-				if ($tr =~ m{class="nick">(.*?)<\/td>}s)
-				{
-					$send_user = $1;
-				}
-			}
-			# third case: action message
-			elsif($tr =~ m{\<td class\=\"msg act}s)
-			{
-				$type = "action";
-				if ($tr =~ m{class="nick">\*(.*?)<\/td>}s)
-				{
-					$send_user = $1;
-					$send_user =~ s/^\W+//; #strip off weird control char in this string!
-				}
-			}	
-				
-			#grab timelog 
-			#<td class="time" id="i_-799986"><a href="/perl6/2005-02-26#i_-799986">13:55</a></td>
-			if ($tr =~ m{td class=\"time\"(.*?)\>\<(.*?)\>(.*?)\<\/a\>}s)
-			{
-				$timelog = $3;
-			}
-			
-			#grab message
-			#<td class="msg act &#39;&#39;">places a sane-o-meter on the channel, wondering if it'll score above zero.</td>
-			if ($tr =~ m{td class=\"msg(.*?)\>(.*?)<\/td\>}s)
-			{
-				$line_message = $2;
-				# clean up html
-				$line_message = decode_entities($line_message);
-			}		
-
-			print "inserting row for $line_num...\n";
-			
-			# insert row into table 
-			#======
-			# LOCAL
-			#======               
-			my $insert2 = $p_dbh2->prepare(qq{
-								INSERT IGNORE INTO perl6_irc
-									(datasource_id, 
-									line_num,
-									line_message,
-									date_of_entry,
-									time_of_entry,
-									type,
-									send_user,
-									last_updated) 
-								VALUES (?,?,?,?,?,?,?,NOW())
-								});
-			$insert2->execute($p_ds, $line_num, $line_message, $datelog, $timelog, $type, $send_user)
-				or die "Couldn't execute statement: " . $insert2->errstr;
-			$insert2->finish();
-	
-			#======
-			# REMOTE
-			#======
-			my $insert3 = $p_dbh3->prepare(qq{
-								INSERT IGNORE INTO perl6_irc
-									(datasource_id, 
-									line_num,
-									line_message,
-									date_of_entry,
-									time_of_entry,
-									type,
-									send_user,
-									last_updated) 
-								VALUES (?,?,?,?,?,?,?,NOW())
-								});
-			$insert3->execute($p_ds, $line_num, $line_message, $datelog, $timelog, $type, $send_user)
-				or die "Couldn't execute statement on REMOTE: " . $insert3->errstr;
-			$insert3->finish();
-		} 
-	}
+            # here is the pattern for an action message:
+            #<tr id="id_l15" class="new nick nick_Odin- dark">
+            #<td class="time" id="i_-799986"><a href="/perl6/2005-02-26#i_-799986">13:55</a></td>
+            #<td style="color: #010002" class="nick">* Odin-</td>
+            #<td class="msg act &#39;&#39;">places a sane-o-meter on the channel, wondering if it'll score above zero.</td>
+            #</tr>
+            
+            # first case: system message (blank nick td)
+            if ($tr =~ m{class\=\"nick\"\>\<\/td\>}s)
+            {
+                $send_user = undef;
+                $type = "system";
+            }
+            # second case: regular message
+            elsif($tr =~ m{\<td class\=\"msg \&}s)
+            {
+                $type = "message";
+                if ($tr =~ m{class="nick">(.*?)<\/td>}s)
+                {
+                    $send_user = $1;
+                }
+            }
+            # third case: action message
+            elsif($tr =~ m{\<td class\=\"msg act}s)
+            {
+                $type = "action";
+                if ($tr =~ m{class="nick">\*(.*?)<\/td>}s)
+                {
+                    $send_user = $1;
+                    $send_user =~ s/^\W+//; #strip off weird control char in this string!
+                }
+            }   
+                
+            # grab timelog: 
+            #<td class="time" id="i_-799986"><a href="/perl6/2005-02-26#i_-799986">13:55</a></td>
+            if ($tr =~ m{td class=\"time\"(.*?)\>\<(.*?)\>(.*?)\<\/a\>}s)
+            {
+                $timelog = $3;
+            }
+            
+            #grab message
+            #<td class="msg act &#39;&#39;">places a sane-o-meter on the channel, wondering if it'll score above zero.</td>
+            if ($tr =~ m{td class=\"msg(.*?)\>(.*?)<\/td\>}s)
+            {
+                $line_message = $2;
+                # clean up html
+                $line_message = decode_entities($line_message);
+            }
+    
+            print "inserting row for $line_num...\n";
+            
+            # insert row into table 
+            #======
+            # LOCAL
+            #======    
+            if ($type ne "")
+            {           
+                my $insert2 = $p_dbh2->prepare(qq{
+                                INSERT IGNORE INTO perl6_irc
+                                    (datasource_id, 
+                                    line_num,
+                                    line_message,
+                                    date_of_entry,
+                                    time_of_entry,
+                                    type,
+                                    send_user,
+                                    last_updated) 
+                                VALUES (?,?,?,?,?,?,?,NOW())
+                                });
+                $insert2->execute($p_ds, $line_num, $line_message, $datelog, $timelog, $type, $send_user)
+                    or die "Couldn't execute statement: " . $insert2->errstr;
+                $insert2->finish();
+    
+                #======
+                # REMOTE
+                #======
+                my $insert3 = $p_dbh3->prepare(qq{
+                                INSERT IGNORE INTO perl6_irc
+                                    (datasource_id, 
+                                    line_num,
+                                    line_message,
+                                    date_of_entry,
+                                    time_of_entry,
+                                    type,
+                                    send_user,
+                                    last_updated) 
+                                VALUES (?,?,?,?,?,?,?,NOW())
+                                });
+                $insert3->execute($p_ds, $line_num, $line_message, $datelog, $timelog, $type, $send_user)
+                    or die "Couldn't execute statement on REMOTE: " . $insert3->errstr;
+                $insert3->finish();
+            }
+        } 
+    }
 }
+        
