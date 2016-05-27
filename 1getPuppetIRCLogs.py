@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 # usage: python puppet_irc_fetcher.py 53029 startdate irctype password
-# startdate is the next date you want to collect from
+# startdate is the next date you want to collect from in the format 2015-08-31
 # irctype can be one of: gen, dev, razor
+# run this three times, once for each irc type
 try:
     import urllib.request as urllib2
 except ImportError:
