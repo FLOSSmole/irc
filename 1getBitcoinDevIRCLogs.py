@@ -34,7 +34,7 @@ import urllib2
 import codecs
 import sys
 import os
-import MySQLdb
+import pymysql 
 
 # constants
 urlstem = 'http://bitcoinstats.com/irc/bitcoin-dev/logs/'
@@ -42,6 +42,7 @@ urlstem = 'http://bitcoinstats.com/irc/bitcoin-dev/logs/'
 # grab commandline args
 datasource_id = str(sys.argv[1])
 mystartdate = str(sys.argv[2])
+pw= str(sys.argv[3])
 
 # make a date object from my startdate
 startdate = datetime.datetime.strptime(mystartdate, '%Y%m%d').date()
@@ -56,28 +57,31 @@ currentdate = startdate
 newds = int(datasource_id)
 
 # Open local database connection
-db1 = MySQLdb.connect(host="local.host",\
-    user="user", \
-    passwd="pass", \
-    db="ossmole_merged", \
+db1 = pymysql.connect(host="grid6.cs.elon.edu",\
+    user="eashwell", \
+    passwd=pw, \
+    db="test", \
     use_unicode=True, \
     charset="utf8")
 cursor1 = db1.cursor()
+
 cursor1.execute('SET NAMES utf8mb4')
 cursor1.execute('SET CHARACTER SET utf8mb4')
 cursor1.execute('SET character_set_connection=utf8mb4')
 
 # Open remote database connection
-db2 = MySQLdb.connect(host="remote.host",\
+db2 = pymysql.connect(host="remote.host",\
     user="user", \
     passwd="pass", \
     db="ossmole_merged", \
     use_unicode=True, \
     charset="utf8")
 cursor2 = db2.cursor()
+
 cursor2.execute('SET NAMES utf8mb4')
 cursor2.execute('SET CHARACTER SET utf8mb4')
 cursor2.execute('SET character_set_connection=utf8mb4')
+
 
 # for each date between the startdate and yesterday, 
 # go grab the corresponding log file.
@@ -129,11 +133,13 @@ while (currentdate <= yesterday):
             str(today), 
             str(today)))
         db1.commit() 
-    except MySQLdb.Error as error:
+    except pymysql.Error as error:
         print(error)
         db1.rollback()
+    currentdate = currentdate + oneday
+    newds += 1
             
-            
+  
     try:
         cursor2.execute(u"INSERT INTO datasources(datasource_id, \
             forge_id, \
@@ -153,14 +159,16 @@ while (currentdate <= yesterday):
             str(today), 
             str(today)))
         db2.commit() 
-    except MySQLdb.Error as error:
+    except pymysql.Error as error:
         print(error)
         db2.rollback()
-        
+       
         
     currentdate = currentdate + oneday
     newds += 1
+
 db1.close()
 db2.close()
 cursor1.close()
 cursor2.close()
+
