@@ -3,6 +3,7 @@
 ## Please see the Perl Artistic License 2.0.
 ## 
 ## Copyright (C) 2004-2015 Megan Squire <msquire@elon.edu>
+## Other contributors: Evan Ashwell
 ##
 ## We're working on this at http://flossmole.org - Come help us build 
 ## an open and accessible repository for data and analyses for open
@@ -22,15 +23,20 @@
 #
 ################################################################
 # usage:
-# 1getBitcoinDevIRCLogs.py 51313 20100922
-# 51313 in that example is hte next available datasource id in the database
+# 1getBitcoinDevIRCLogs.py 51313 20100922 password
+# 51313 in that example is the next available datasource_id in the database
 # 20100922 is the date to start with
+# password is a database password
 # purpose: 
 # grab all the IRC logs from http://bitcoinstats.com/irc/bitcoin-dev/logs/
 ################################################################
 
 import datetime
-import urllib2
+import time
+try:
+    import urllib.request as urllib2
+except ImportError:
+    import urllib2
 import codecs
 import sys
 import os
@@ -58,9 +64,9 @@ newds = int(datasource_id)
 
 # Open local database connection
 db1 = pymysql.connect(host="grid6.cs.elon.edu",\
-    user="eashwell", \
+    user="megan", \
     passwd=pw, \
-    db="test", \
+    db="ossmole_merged", \
     use_unicode=True, \
     charset="utf8")
 cursor1 = db1.cursor()
@@ -70,9 +76,9 @@ cursor1.execute('SET CHARACTER SET utf8mb4')
 cursor1.execute('SET character_set_connection=utf8mb4')
 
 # Open remote database connection
-db2 = pymysql.connect(host="remote.host",\
-    user="user", \
-    passwd="pass", \
+db2 = pymysql.connect(host="flossdata.syr.edu",\
+    user="megan", \
+    passwd=pw, \
     db="ossmole_merged", \
     use_unicode=True, \
     charset="utf8")
@@ -81,7 +87,6 @@ cursor2 = db2.cursor()
 cursor2.execute('SET NAMES utf8mb4')
 cursor2.execute('SET CHARACTER SET utf8mb4')
 cursor2.execute('SET character_set_connection=utf8mb4')
-
 
 # for each date between the startdate and yesterday, 
 # go grab the corresponding log file.
@@ -92,9 +97,16 @@ while (currentdate <= yesterday):
     year = str(currentdate.year)
     month = str(currentdate.month).zfill(2)
     day = str(currentdate.day).zfill(2)
-    print "processing ",currentdate
+    print("sleeping", end='')
+    
+    for i in range(5,0,-1):
+        time.sleep(1)
+        sys.stdout.write('.')
+        sys.stdout.flush()
+    
+    print("processing ",currentdate,"(",newds,")")
     url = urlstem + year + "/" + month + "/" + day
-    print "grabbing", url
+    print("grabbing", url)
     
     # to stop 403 Forbidden errors
     hdr = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.11 (KHTML, like Gecko) Chrome/23.0.1271.64 Safari/537.11',
@@ -110,12 +122,13 @@ while (currentdate <= yesterday):
     html = urllib2.urlopen(req).read()
     fileloc = datasource_id + '/' + str(currentdate)
     outfile = codecs.open(fileloc,'w')
-    outfile.write(html)
+    outfile.write(str(html))
     outfile.close()
     
     # put new datasource_id in databases
+    #----- LOCAL
     try:
-        cursor1.execute(u"INSERT INTO datasources(datasource_id, \
+        cursor1.execute("INSERT INTO datasources(datasource_id, \
             forge_id, \
             friendly_name, \
             date_donated, \
@@ -135,13 +148,12 @@ while (currentdate <= yesterday):
         db1.commit() 
     except pymysql.Error as error:
         print(error)
-        db1.rollback()
-    currentdate = currentdate + oneday
-    newds += 1
-            
-  
+        db1.rollback()          
+   #----- END LOCAL
+   
+   #----- REMOTE
     try:
-        cursor2.execute(u"INSERT INTO datasources(datasource_id, \
+        cursor2.execute("INSERT INTO datasources(datasource_id, \
             forge_id, \
             friendly_name, \
             date_donated, \
@@ -162,8 +174,9 @@ while (currentdate <= yesterday):
     except pymysql.Error as error:
         print(error)
         db2.rollback()
-       
-        
+    #----- END REMOTE  
+    
+    # increment for next date and datasource_id 
     currentdate = currentdate + oneday
     newds += 1
 
@@ -171,4 +184,3 @@ db1.close()
 db2.close()
 cursor1.close()
 cursor2.close()
-
