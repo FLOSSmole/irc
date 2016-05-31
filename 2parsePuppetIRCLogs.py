@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
-# usage: python puppet_irc_parser.py 53029 irctype password
-# type can be one of: gen, dev, razor
+# usage: python puppet_irc_fetcher.py 53029 filePath password
+# datasource_id is the first new datasource for that filePath on this run
+# filePath can be one of: gen, dev, razor
+# run this three times, once for each irctype (filePath)
 import re
 import codecs
 import pymysql
@@ -27,21 +29,21 @@ else:
     
 # Establishes connection to the databases (local and remote)
 db1 = pymysql.connect(host="grid6.cs.elon.edu",
-                      user="eashwell",
+                      user="megan",
                       passwd=pw,
-                      db="test",
+                      db="puppet_irc",
                       use_unicode=True,
                       charset="utf8")
 cursor1 = db1.cursor()
 
 db2 = pymysql.connect(host="grid6.cs.elon.edu",
-                      user="eashwell",
+                      user="megan",
                       passwd=pw,
-                      db="test",
+                      db="ossmole_merged",
                       use_unicode=True,
                       charset="utf8")
 cursor2 = db2.cursor()
-"""
+
 db3 = pymysql.connect(host="flossdata.syr.edu",
                       user="megan",
                       passwd=pw,
@@ -49,10 +51,9 @@ db3 = pymysql.connect(host="flossdata.syr.edu",
                       use_unicode=True,
                       charset="utf8")
 cursor3 = db3.cursor()
-"""
+
 
 # get files to process
-
 cursor2.execute('SELECT datasource_id, comments \
                  FROM datasources \
                  WHERE datasource_id >= %s AND forge_id = %s',
@@ -219,7 +220,7 @@ for row in rows:
         except pymysql.Error as error:
             print(error)
             db1.rollback()
-        """
+        
         try:
             cursor3.execute("INSERT IGNORE INTO " + tablename + "(`datasource_id`, \
                             `line_number`, \
@@ -239,17 +240,14 @@ for row in rows:
                                 sendUser,
                                 datetime.datetime.now()))
             db3.commit()
-        except MySQLdb.Error as error:
+        except pymysql.Error as error:
             print(error)
             db3.rollback()
-            """
+            
 cursor1.close()
 cursor2.close()
-"""
 cursor3.close()
-"""
+
 db1.close()
 db2.close()
-"""
 db3.close()
-"""
