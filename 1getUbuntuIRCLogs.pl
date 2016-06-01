@@ -1,3 +1,4 @@
+
 #!/usr/bin/perl
 ## This program is free software; you can redistribute it
 ## and/or modify it under the same terms as Perl itself.
@@ -35,136 +36,172 @@
 # grab all the IRC logs from http://irclogs.ubuntu.com
 # parse these files looking for facts to populate the ubuntu irc table
 ################################################################
-use LWP::Simple;
-use strict;
-use DBI;
-use DateTime;
+try:
+    import urllib.request as urllib2
+except ImportError:
+    import urllib2
+import pymysql
+import datetime
+from datetime import date, timedelta
+import sys
+import codecs
+import os
 
-my $datasource_id = shift @ARGV;
-my $date_to_start = shift @ARGV;
-my $urlstem = "http://irclogs.ubuntu.com";
-my $forge_id = 43;
-
-if ($datasource_id && $date_to_start)
-{
-	# connect to db (once at local, and once at remote)
-	# dsn takes the format of "DBI:mysql:ossmole_merged:local.host"
-	my $dsn1 = "DBI:mysql:ossmole_merged:local.host";
-	my $dbh1 = DBI->connect($dsn1, "user", "pass", {RaiseError=>1});
-	
-	my $dsn2 = "DBI:mysql:ossmole_merged:remote.host";
-	my $dbh2 = DBI->connect($dsn2, "user", "pass", {RaiseError=>1});
-	
-	mkdir ($datasource_id);
-	grabFiles($dbh1, $dbh2, $datasource_id, $urlstem, $date_to_start);
-	
-	$dbh1->disconnect(); 
-	$dbh2->disconnect();
-}
-else
-{
-	print "You need both a datasource_id and a date to start on your commandline.";
-	exit;
-}
 
 # --------------------------------------------------
 # get the files from the web site
 # starting with the date given on the command line
 # store each URL as a local file
 # --------------------------------------------------
-sub grabFiles($dbh1, $dbh2, $datasource_id, $urlstem, $date_to_start)
-{
-    my $p_dbh1          = $_[0];
-    my $p_dbh2          = $_[1];
-    my $p_datasource_id = $_[2];
-    my $p_urlstem       = $_[3];
-    my $p_date_to_start = $_[4];
+def grabFiles(dbh1, dbh2, datasource_id, urlstem, date_to_start):
+    cursor= dbh1.cursor()
+    """
+    cursor2= dbh2.cursor()
+    """       
+    p_datasource_id = datasource_id
+    p_urlstem = urlstem
+    p_date_to_start = date_to_start
     
-    my $newds = $p_datasource_id;
+    newds = p_datasource_id
         
     #get yesterday's date
-    my @yesterdayA = localtime( ( time() - ( 24 * 60 * 60 ) ) );
-    my $yesterday = sprintf("%02d%02d%02d",($yesterdayA[5]+1900),$yesterdayA[4]+1,$yesterdayA[3]);
-    print "yesterday's date is: $yesterday\n";
-    my $date=DateTime->new(
-    {
-        year=>substr($p_date_to_start,0,4),
-        month=>substr($p_date_to_start,4,2),
-        day=>substr($p_date_to_start,6,2)
-    });
+    yesterday= datetime.datetime.now()-timedelta(days= 1)
+    print ("yesterday's date is:",yesterday)
+    dates= datetime.datetime(int(p_date_to_start[0:4]),int(p_date_to_start[4:-2]),int(p_date_to_start[6:]))
+    while(dates <= yesterday):
+        print ("working on ...")
+        print (date)
+        
+        # get yyyy, mm, dd and put into URL
+        yyyy = dates.year
+        mm   = dates.month
+        dd   = dates.day
+        # put leading zeroes on dd & mm
+        if (dd < 10):
+            dd = str("0" + str(dd))
+        if (mm < 10):
+            mm = str("0"+str(mm))
+        
+        # get file
+        # Log URLs are in this format:
+        # http://irclogs.ubuntu.com/2015/03/09/%23ubuntu.txt
+        filestem = "/" +str(yyyy) + "/" +str(mm) + "/" +str(dd) + "/" + "%23ubuntu.txt"
+        newURL = p_urlstem + filestem
+        print ("getting URL " + newURL)
 
-
-    while($date->ymd('') le $yesterday)
-    {
-		print "\nworking on ...";
-		print $date->ymd('') . "\n";
-
-		# get yyyy, mm, dd and put into URL
-		my $yyyy = $date->year();
-		my $mm   = $date->month();
-		my $dd   = $date->day();
-
-		# put leading zeroes on dd & mm
-		if ($dd < 10)
-		{
-			$dd = "0" . $dd;
-		}
-		if ($mm < 10)
-		{
-			$mm = "0" . $mm;
-		}
-		
-		# get file
-		# Log URLs are in this format:
-		# http://irclogs.ubuntu.com/2015/03/09/%23ubuntu.txt
-		my $filestem = "/" . $yyyy . "/" . $mm . "/" . $dd . "/" . "%23ubuntu.txt";
-        my $newURL = $p_urlstem . $filestem;
-        print "getting URL $newURL\n";
-
-		my $saveLoc = $p_datasource_id . "/" . $yyyy.$mm.$dd;
-		print "...saving as: $saveLoc";        
-	
-		my $status = getstore($newURL, $saveLoc);
-		print "=======Error $status on $newURL" unless is_success($status);		   
-	
-		#======
-		# LOCAL
-		#======
-		my $insertQuery1 = $p_dbh1->prepare(qq{INSERT IGNORE INTO ossmole_merged.datasources
-						(datasource_id,
-						forge_id,
-						friendly_name,
-						date_donated,
-						contact_person,
-						comments,
-						start_date,
-						end_date)
-						VALUES (?,?,?,now(),'msquire\@elon.edu',?,now(),now())});
-	
-		$insertQuery1->execute($newds, $forge_id, 'Ubuntu IRC '. $yyyy.$mm.$dd, $saveLoc)
-		  or die "Couldn't execute statement on LOCAL: " . $insertQuery1->errstr;
-		$insertQuery1->finish();
+        saveLoc = p_datasource_id + filestem
+        print ("...saving as:",  saveLoc)
+        
+        aName=p_datasource_id+ filestem
+        print(aName)
+        if not os.path.exists(p_datasource_id+ "/" +str(yyyy)):
+            os.mkdir(p_datasource_id+ "/" +str(yyyy))
+        if not os.path.exists(p_datasource_id+ "/" +str(yyyy) + "/"  +str(mm)):
+            os.mkdir(p_datasource_id+ "/" +str(yyyy) + "/"  +str(mm))
+        os.mkdir(p_datasource_id+ "/" +str(yyyy) + "/"  +str(mm) + "/" +str(dd))
+        try:
+            html = urllib2.urlopen(newURL).read()
+        except urllib2.HTTPError as error:
+            print(error)
+        else:
+            fileloc = datasource_id + filestem
+            outfile = codecs.open(fileloc,'w')
+            outfile.write(str(html))
+            outfile.close()
+        #======
+        # LOCAL
+        #======
+            try:
+                cursor.execute(u"INSERT INTO datasources(datasource_id, \
+                    forge_id, \
+                    friendly_name, \
+                    date_donated, \
+                    contact_person, \
+                    comments, \
+                    start_date, \
+                    end_date)  \
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)", 
+                    (str(newds), 
+                     forge_id,
+                     'Ubunto IRC' + '/' +str(yyyy) + '/' +str(mm)+ '/' + str(dd) +"%23ubuntu.txt",
+                     datetime.datetime.now(),
+                    'msquire@elon.edu', 
+                    fileloc, 
+                    datetime.datetime.now(), 
+                    datetime.datetime.now()))
+                dbh1.commit() 
+            except pymysql.Error as error:
+                print(error)
+                dbh1.rollback()
+        #increment date by one
+        dates= dates + timedelta(days=1)
+        newds= int(newds) +1
+    cursor.close()
+    
         #=====
         # REMOTE
         #=====
-		my $insertQuery2 = $p_dbh2->prepare(qq{INSERT IGNORE INTO ossmole_merged.datasources
-						(datasource_id,
-						forge_id,
-						friendly_name,
-						date_donated,
-						contact_person,
-						comments,
-						start_date,
-						end_date)
-						VALUES (?,?,?,now(),'msquire\@elon.edu',?,now(),now())});
-	
-		$insertQuery2->execute($newds, $forge_id, 'Ubuntu IRC '. $yyyy.$mm.$dd, $saveLoc)
-		  or die "Couldn't execute statement on REMOTE: " . $insertQuery2->errstr;
-		$insertQuery2->finish();
-        
+"""
+        try:
+            cursor2.execute(u"INSERT INTO datasources(datasource_id, \
+                forge_id, \
+                friendly_name, \
+                date_donated, \
+                contact_person, \
+                comments, \
+                start_date, \
+                end_date)  \
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)", 
+                (str(newds), 
+                forge_id,
+                'Ubunto IRC',
+                str(datetime.now()),
+                'msquire@elon.edu', 
+                fileloc, 
+                str(datetime.now()), 
+                str(datetime.now())))
+            dbh2.commit() 
+        except pymysql.Error as error:
+            print(error)
+            dbh2.rollback()
+       
         
         #increment date by one
-        $date->add(days=>1);
-        $newds++;
-    }    
-}
+        date= date + timedelta(day = 1)
+        newds= newds +1
+"""
+
+datasource_id = str(sys.argv[1])
+date_to_start = str(sys.argv[2])
+password= str(sys.argv[3])
+urlstem = "http://irclogs.ubuntu.com"
+forge_id = 43
+
+if datasource_id and date_to_start:
+    try:
+        dbh1 = pymysql.connect(host='grid6.cs.elon.edu',
+                                  database='test',
+                                  user='eashwell',
+                                  password=password,
+                                  charset='utf8')
+    
+    except pymysql.Error as err:
+        print(err)
+    try:
+         dbh2 = pymysql.connect(host='flossdata.syr.edu',
+                                  database='rubygems',
+                                  user='megan',
+                                  password=password,
+                                  charset='utf8')
+    except pymysql.Error as err:
+        print(err)
+        dbh2= "remote"
+    
+    os.mkdir (datasource_id)
+    grabFiles(dbh1, dbh2, datasource_id, urlstem, date_to_start)
+    dbh1.close()
+else:
+	print ("You need both a datasource_id and a date to start on your commandline.")
+	exit;
+
+
