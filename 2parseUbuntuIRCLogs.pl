@@ -21,6 +21,158 @@
 ## FLOSSmole (2004-2015) FLOSSmole: a project to provide academic access to data 
 ## and analyses of open source projects.  Available at http://flossmole.org 
 #
+import pymysql
+import sys
+import re
+import codecs
+import datetime
+# --------------------------------------------------
+# subroutine: parseFile
+# takes: two database connections (local and remote) and a datasource_id
+# purpose:
+# --get each file on disk
+# --pull out the lines
+# --parse out the pieces of the lines
+# --write each line to the irc table in both local and remote db
+# --------------------------------------------------
+def parseFile(dbh2, dbh3, ds, fileLoc):
+    p_dbh2  = dbh2
+    p_dbh3  = dbh3
+    p_ds    = ds
+    p_fileLoc = fileLoc
+
+    #date is in the filename, in the format:
+    # 51146/20151231
+    datelog =""
+    formatting= re.search('(.*?)\/(.*?)\-%',p_fileLoc)
+    
+    if formatting:  
+        tempdate = formatting.group(2)
+        #print "got [$tempdate] for date\n";
+        correctForm=re.search('^(\d\d\d\d)(\d\d)(\d\d)',tempdate)
+        if correctForm:
+            datelog = correctForm.group(1) + "-" + correctForm.group(2) + "-" + correctForm.group(3)
+        else:
+            datelog=formatting.group(2)
+    # open the file
+    print ("working on file: " ,p_fileLoc ,datelog)
+    try:
+        log = codecs.open(fileLoc, 'r', encoding='utf-8', errors='ignore')
+        line=log.read()
+        line= line[2:]
+        line= line[:-1]
+        log=line.split("\\n")
+    except pymysql.Error as err:
+        print(err)
+    
+    linenum = 0;
+    for line in log:    
+        #print $line;
+        linenum=linenum+1
+        send_user = ""
+        timelog = ""
+        line_message = ""
+        messageType = ""
+        
+        # parse out rest of details & insert
+        # 1. get system message vs regular message, parse
+        # 2. insert
+        #
+        # here are the two patterns (note that the system message has no time):
+        # === foo is now known as foo_
+        # [00:04] <bar> your on unity desktop?
+        #
+        # note also that bots are treated as regular messages
+        messageChecker= re.search('\[(.*?)\]\s+\<(.*?)\>(.*?$)',line)
+        systemChecker= re.search('\=\=\=\s+(.*?)$',line)
+        if messageChecker: #regular message
+            timelog = messageChecker.group(1)
+            send_user = messageChecker.group(2)
+            line_message = messageChecker.group(3)
+            messageType = "message"
+        elif systemChecker: # system message
+            messageType = "system"
+            line_message = systemChecker.group(1)
+            timelog = None
+            send_user = None
+
+        #print "inserting row $linenum for $datelog ($send_user, $timelog, [" . substr($line_message,0,10) . "]\n";
+        #======
+        # LOCAL
+        #======        
+       
+        if ((p_ds) and (messageType != "")):
+            
+            try:
+                cursor2= dbh3.cursor()
+                currDate=datetime.datetime.now()
+                insertQuery="INSERT IGNORE INTO ubuntu_irc (datasource_id,\
+                                line_num,\
+                                full_line_text,\
+                                line_message,\
+                                date_of_entry,\
+                                time_of_entry,\
+                                type,\
+                                send_user,\
+                                last_updated)\
+                                VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+                print(insertQuery)
+                print(p_ds)
+                print(linenum)
+                print(line)
+                print(line_message)
+                print(datelog)
+                print(timelog)
+                print(messageType)
+                print(send_user)
+                print(currDate)
+                cursor2.execute(insertQuery,
+                                (p_ds,
+                                 linenum,
+                                 str(line),
+                                 str(line_message),
+                                 datelog,
+                                 timelog,
+                                 messageType,
+                                 send_user,
+                                 currDate))
+                dbh3.commit()
+            except pymysql.Error as error:
+                print(error)
+                dbh3.rollback()
+            cursor2.close()
+
+        #======
+        # REMOTE
+        #======
+"""
+        if ((p_ds) and (messageType != "")):
+             try:               
+                cursor.execute("INSERT IGNORE INTO ubuntu_irc (datasource_id,\
+                                line_num,\
+                                full_line_text,\
+                                line_message,\
+                                date_of_entry,\
+                                time_of_entry,\
+                                type,\
+                                send_user,\
+                                last_updated)\
+                                VALUES(%s,$s,%s,%s,$s,$s,%s,%s,%s)",
+                                (p_ds,
+                                 linenum,
+                                 line,
+                                 datelog,
+                                 timelog,
+                                 messageType,
+                                 send_user,
+                                 datetime.datetime.now()))
+                dbh2.commit()
+            except pymysql.Error as error:
+                print(error)
+                dbh2.rollback()
+            cursor.close()
+            """
+           
 ################################################################
 # usage:
 # > perl 2parseUbuntuLogs.pl <datasource_id> 
@@ -35,166 +187,63 @@
 # Does not need to be the latest one
 #
 ################################################################
-use strict;
-use DBI;
-use HTML::Entities;
 
-my $datasource_id = shift @ARGV;
-my $forge_id = 43;
+datasource_id = str(sys.argv[1])
+password= str(sys.argv[2])
+forge_id = 43
 
-if ($datasource_id)
-{
+if (datasource_id):
 	# connect to db (once at local grid6, and once at Syracuse)
 	# dsn takes the format of "DBI:mysql:ossmole_merged:grid6.cs.elon.edu"
-	my $dsn1 = "DBI:mysql:ossmole_merged:local.host";
-	my $dbh1 = DBI->connect($dsn1, "user", "pass", {RaiseError=>1});
-	
-	my $dsn2 = "DBI:mysql:irc:local.host";
-	my $dbh2 = DBI->connect($dsn2, "user", "pass", {RaiseError=>1});
-	
-	my $dsn3 = "DBI:mysql:irc:remote.host";
-	my $dbh3 = DBI->connect($dsn3, "user", "pass", {RaiseError=>1});
-	
-	# get the file list from the 'comments' field in the datasources table
-	my $sth1 = $dbh1->prepare(qq{select datasource_id, comments 
-		from ossmole_merged.datasources 
-		where datasource_id >= ? 
-		and forge_id=?});
-    $sth1->execute($datasource_id, $forge_id);
-    my $filesInDB = $sth1->fetchall_arrayref;
-    $sth1->finish();
-
-	foreach my $row (@$filesInDB) 
-    {
-        my ($ds, $fileLoc) = @$row;
-        print "==================\n";
-        parseFile($dbh2, $dbh3, $ds, $fileLoc);
-    }   	
-	
-	$dbh1->disconnect(); 
-	$dbh2->disconnect();
-	$dbh3->disconnect();
-}
-else
-{
-	print "You need both a datasource_id and a date to start on your commandline.";
+    try:
+        dbh2 = pymysql.connect(host='grid6.cs.elon.edu',
+                                  database='test',
+                                  user='eashwell',
+                                  password=password,
+                                  charset='utf8')
+    
+    except pymysql.Error as err:
+        print(err)
+    try:
+        dbh3 = pymysql.connect(host='grid6.cs.elon.edu',
+                                  database='test',
+                                  user='eashwell',
+                                  password=password,
+                                  charset='utf8')
+    
+    except pymysql.Error as err:
+        print(err)
+        """
+    try:
+         dbh3 = pymysql.connect(host='flossdata.syr.edu',
+                                  database='rubygems',
+                                  user='megan',
+                                  password=password,
+                                  charset='utf8')
+    except pymysql.Error as err:
+        print(err)
+        dbh2= "remote"
+        """
+    cursor= dbh2.cursor()
+    
+    selectQuery="select datasource_id, comments \
+		from test.datasources \
+		where datasource_id >= %s \
+		and forge_id=%s"  
+    cursor.execute(selectQuery,(datasource_id,forge_id))
+    rows=cursor.fetchall()    
+    
+    print(rows)
+     
+    for row in rows : 
+        ds= row[0]
+        fileLoc= row[1]
+        print ("==================\n")
+        parseFile(dbh2, dbh3, ds, fileLoc)
+    cursor.close()
+    dbh2.close()
+    dbh3.close()
+    print("done")
+else:
+	print ("You need both a datasource_id and a date to start on your commandline.")
 	exit;
-}
-
-# --------------------------------------------------
-# subroutine: parseFile
-# takes: two database connections (local and remote) and a datasource_id
-# purpose:
-# --get each file on disk
-# --pull out the lines
-# --parse out the pieces of the lines
-# --write each line to the irc table in both local and remote db
-# --------------------------------------------------
-sub parseFile($dbh2, $dbh3, $ds, $fileLoc)
-{
-    my $p_dbh2  = $_[0];
-    my $p_dbh3  = $_[1];
-    my $p_ds    = $_[2];
-    my $p_fileLoc = $_[3];
-
-    #date is in the filename, in the format:
-    # 51146/20151231
-    my $datelog ="";
-    if ($p_fileLoc =~ m{^(.*?)\/(.*?)$}s)
-    {              
-        my $tempdate = $2;
-        #print "got [$tempdate] for date\n";
-        
-        if ($tempdate =~ m{^(\d\d\d\d)(\d\d)(\d\d)}s)
-        {
-        	$datelog = $1 . "-" . $2 . "-" . $3;
-        }
-    }
-    
-    # open the file
-    print "working on file: $p_fileLoc ($datelog)\n";
-    open (FILE, $p_fileLoc) || print "can't open $p_fileLoc: $!\n";
-    
-    my $linenum = 0;
-    while(my $line = <FILE>)  
-    {      
-        #print $line;
-        $linenum++;
-        my $send_user = "";
-        my $timelog = "";
-        my $line_message = "";
-        my $type = "";
-        
-        # parse out rest of details & insert
-        # 1. get system message vs regular message, parse
-        # 2. insert
-        #
-        # here are the two patterns (note that the system message has no time):
-        # === foo is now known as foo_
-		# [00:04] <bar> your on unity desktop?
-		#
-		# note also that bots are treated as regular messages
-		        
-        if ($line =~ m{^\[(.*?)\]\s+\<(.*?)\>\s+(.*?)$}s) #regular message
-        {
-            $timelog = $1;
-            $send_user = $2;
-            $line_message = $3;
-            $type = "message";
-        } 
-        
-        elsif($line =~ m{^\=\=\=\s+(.*?)$}s) # system message
-        {
-            $type = "system";
-            $line_message = $1;
-            $timelog = undef;
-            $send_user = undef;
-        }  
-    	
-        #print "inserting row $linenum for $datelog ($send_user, $timelog, [" . substr($line_message,0,10) . "]\n";
-        #======
-        # LOCAL
-        #======                
-        if (($p_ds) && ($type ne ""))
-        {
-            my $insert2 = $p_dbh2->prepare(qq{
-                            INSERT IGNORE INTO ubuntu_irc
-                                (datasource_id, 
-                                line_num,
-                                full_line_text,
-                                line_message,
-                                date_of_entry,
-                                time_of_entry,
-                                type,
-                                send_user,
-                                last_updated) 
-                            VALUES (?,?,?,?,?,?,?,?,NOW())
-                            });
-            $insert2->execute($p_ds, $linenum, $line, $line_message, $datelog, $timelog, $type, $send_user)
-                or die "Couldn't execute statement on LOCAL: " . $insert2->errstr;
-            $insert2->finish();
-        } 
-        #======
-        # REMOTE
-        #======
-        if (($p_ds) && ($type ne ""))
-        {
-            my $insert3 = $p_dbh3->prepare(qq{
-                            INSERT IGNORE INTO ubuntu_irc
-                                (datasource_id, 
-                                line_num,
-                                full_line_text,
-                                line_message,
-                                date_of_entry,
-                                time_of_entry,
-                                type,
-                                send_user,
-                                last_updated) 
-                            VALUES (?,?,?,?,?,?,?,?,NOW())
-                            });
-            $insert3->execute($p_ds, $linenum, $line, $line_message, $datelog, $timelog, $type, $send_user)
-                or die "Couldn't execute statement on REMOTE: " . $insert3->errstr;
-            $insert3->finish();
-        } 
-    }
-}
