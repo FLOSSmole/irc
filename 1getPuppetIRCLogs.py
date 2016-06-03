@@ -1,108 +1,141 @@
-# -*- coding: utf-8 -*-
-# usage: python puppet_irc_fetcher.py 53029 startdate irctype password
-# startdate is the next date you want to collect from in the format 2015-08-31
-# irctype can be one of: gen, dev, razor
-# run this three times, once for each irc type
+
+#!/usr/bin/perl
+## This program is free software; you can redistribute it
+## and/or modify it under the same terms as Perl itself.
+## Please see the Perl Artistic License 2.0.
+## 
+## Copyright (C) 2004-2015 Megan Squire <msquire@elon.edu>
+##
+## We're working on this at http://flossmole.org - Come help us build 
+## an open and accessible repository for data and analyses for open
+## source projects.
+##
+## If you use this code or data for preparing an academic paper please
+## provide a citation to 
+##
+## Howison, J., Conklin, M., & Crowston, K. (2006). FLOSSmole: 
+## A collaborative repository for FLOSS research data and analyses. 
+## International Journal of Information Technology and Web Engineering, 1(3), 17–26.
+##
+## and
+##
+## FLOSSmole (2004-2015) FLOSSmole: a project to provide academic access to data 
+## and analyses of open source projects.  Available at http://flossmole.org 
+#
+################################################################
+# usage:
+# > perl 1getUbuntuIRCLogs.pl <new_datasource_id> <date-to-start> 
+#
+# THIS DATASOURCE IS THE NEXT ONE AVAIL IN THE DB - AND IT WILL GET INCREMENTED
+# DATE TO START is the oldest un-collected date; 
+# the script will go from there through yesterday in order
+# example usage:
+# > perl 1getUbuntuIRCLogs.pl 51201 20150410
+#
+# purpose: 
+# grab all the IRC logs from http://irclogs.ubuntu.com
+# parse these files looking for facts to populate the ubuntu irc table
+################################################################
 try:
     import urllib.request as urllib2
 except ImportError:
     import urllib2
-import codecs
-import datetime
-import sys
-import os
 import pymysql
+import datetime
+from datetime import date, timedelta
+import sys
+import codecs
+import os
+
+
+# --------------------------------------------------
+# get the files from the web site
+# starting with the date given on the command line
+# store each URL as a local file
+# --------------------------------------------------
+def grabFiles(dbh1, dbh2, datasource_id, urlstem, date_to_start):
+    cursor= dbh1.cursor()
+    """
+    cursor2= dbh2.cursor()
+    """       
+    p_datasource_id = datasource_id
+    p_urlstem = urlstem
+    p_date_to_start = date_to_start
     
-# takes user inputs
-# ds stand for the next available data source
-#the start date is the day after the last known date data was collected
-# irctype is dev and razor
-ds = int(sys.argv[1])
-newds = int(ds)
-mystartdate = str(sys.argv[2])
-irctype = str(sys.argv[3])
-pw = str(sys.argv[4])
-
-if irctype == 'razor':
-    directory = 'razor'
-    forge_id = '69'
-    urlstem = "http://www.puppetlogs.com/puppetrazor/%23puppet-razor-"
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-elif irctype == 'dev':
-    forge_id = '70'
-    directory = 'dev'
-    urlstem = "http://www.puppetlogs.com/puppetdev/%23puppet-dev-"
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-elif irctype == 'gen':
-    forge_id = '68'
-    directory = 'gen'
-    urlstem = "http://www.puppetlogs.com/puppet/%23puppet-"
-    if not os.path.exists("gen"):
-        os.makedirs("gen")
-else:
-    print("invalid irc type, must be one of gen, dev, or razor")
-    exit
-
-friendly = 'Puppet ' + directory + ' IRC Logs '
-
-# dates
-startdate = datetime.datetime.strptime(mystartdate, '%Y-%m-%d').date()
-enddate = datetime.date.today()
-
-# databases
-db1 = pymysql.connect(host="grid6.cs.elon.edu", 
-                      user="megan", 
-                      passwd=pw, 
-                      db="ossmole_merged", 
-                      use_unicode=True, 
-                      charset = "utf8")
-cursor1 = db1.cursor()
-db2 = pymysql.connect(host="flossdata.syr.edu",
-                      user="megan", 
-                      passwd=pw,
-                      db="ossmole_merged",
-                      use_unicode=True,
-                      charset = "utf8")
-cursor2 = db2.cursor()
-
-
-while(startdate != enddate):
-    print(startdate)
-    date = datetime.date.isoformat(startdate)
-    url = urlstem + date + ".log"
-    print(url)
-    try:
-        html = urllib2.urlopen(url).read()
-        fileloc = directory + '/' + date + '.txt'
-        out = codecs.open(fileloc, "w")
-        out.write(str(html))
-        out.close
+    newds = p_datasource_id
         
-        # put new datasource_id in databases (local and remote)
+    #get yesterday's date
+    yesterday= datetime.datetime.now()-timedelta(days= 1)
+    print ("yesterday's date is:",yesterday)
+    dates= datetime.datetime(int(p_date_to_start[0:4]),int(p_date_to_start[4:-2]),int(p_date_to_start[6:]))
+    while(dates <= yesterday):
+        print ("working on ...")
+        print (date)
+        
+        # get yyyy, mm, dd and put into URL
+        yyyy = dates.year
+        mm   = dates.month
+        dd   = dates.day
+        # put leading zeroes on dd & mm
+        if (dd < 10):
+            dd = str("0" + str(dd))
+        if (mm < 10):
+            mm = str("0"+str(mm))
+        fileName= "/"+str(yyyy)+"-"+str(mm)+ "-"+str(dd)+"-%23ubuntu.txt"
+        
+        # get file
+        # Log URLs are in this format:
+        # http://irclogs.ubuntu.com/2015/03/09/%23ubuntu.txt
+        filestem = "/" +str(yyyy) + "/" +str(mm) + "/" +str(dd) + "/" + "%23ubuntu.txt"
+        newURL = p_urlstem + filestem
+        print ("getting URL " + newURL)
+
+        saveLoc = p_datasource_id +fileName
+        print ("...saving as:",  saveLoc)
+        
         try:
-            cursor1.execute(u"INSERT INTO datasources(datasource_id, \
-                forge_id, \
-                friendly_name, \
-                date_donated, \
-                contact_person, \
-                comments, \
-                start_date, \
-                end_date)  \
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)", 
-                (str(newds), 
-                forge_id,
-                friendly+date,
-                str(enddate),
-                'msquire@elon.edu', 
-                fileloc, 
-                str(enddate), 
-                str(enddate)))
-            db1.commit() 
-        except pymysql.Error as error:
+            html = urllib2.urlopen(newURL).read()
+        except urllib2.HTTPError as error:
             print(error)
-            db1.rollback()
+        else:
+            fileloc = datasource_id + fileName
+            outfile = codecs.open(fileloc,'w')
+            outfile.write(str(html))
+            outfile.close()
+        #======
+        # LOCAL
+        #======
+            try:
+                cursor.execute(u"INSERT INTO datasources(datasource_id, \
+                    forge_id, \
+                    friendly_name, \
+                    date_donated, \
+                    contact_person, \
+                    comments, \
+                    start_date, \
+                    end_date)  \
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)", 
+                    (str(newds), 
+                     forge_id,
+                     'Ubunto IRC' + '/' +str(yyyy) + '/' +str(mm)+ '/' + str(dd) +"%23ubuntu.txt",
+                     datetime.datetime.now(),
+                    'msquire@elon.edu', 
+                    fileloc, 
+                    datetime.datetime.now(), 
+                    datetime.datetime.now()))
+                dbh1.commit() 
+            except pymysql.Error as error:
+                print(error)
+                dbh1.rollback()
+        #increment date by one
+        dates= dates + timedelta(days=1)
+        newds= int(newds) +1
+    cursor.close()
+    
+        #=====
+        # REMOTE
+        #=====
+"""
         try:
             cursor2.execute(u"INSERT INTO datasources(datasource_id, \
                 forge_id, \
@@ -115,27 +148,54 @@ while(startdate != enddate):
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s)", 
                 (str(newds), 
                 forge_id,
-                friendly+date,
-                str(enddate),
+                'Ubunto IRC',
+                str(datetime.now()),
                 'msquire@elon.edu', 
                 fileloc, 
-                str(enddate), 
-                str(enddate)))
-            db2.commit() 
+                str(datetime.now()), 
+                str(datetime.now())))
+            dbh2.commit() 
         except pymysql.Error as error:
             print(error)
-            db2.rollback()
+            dbh2.rollback()
+       
         
-        # increment for the next file
-        startdate = startdate + datetime.timedelta(days=1)
-        newds += 1
-        
-    except urllib2.HTTPError:
-        # increment for the next file
-        startdate = startdate + datetime.timedelta(days=1)
-        pass
+        #increment date by one
+        date= date + timedelta(day = 1)
+        newds= newds +1
+"""
 
-db1.close()
-db2.close()
-cursor1.close()
-cursor2.close()
+datasource_id = str(sys.argv[1])
+date_to_start = str(sys.argv[2])
+password= str(sys.argv[3])
+urlstem = "http://irclogs.ubuntu.com"
+forge_id = 43
+
+if datasource_id and date_to_start:
+    try:
+        dbh1 = pymysql.connect(host='grid6.cs.elon.edu',
+                                  database='test',
+                                  user='eashwell',
+                                  password=password,
+                                  charset='utf8')
+    
+    except pymysql.Error as err:
+        print(err)
+    try:
+         dbh2 = pymysql.connect(host='flossdata.syr.edu',
+                                  database='rubygems',
+                                  user='megan',
+                                  password=password,
+                                  charset='utf8')
+    except pymysql.Error as err:
+        print(err)
+        dbh2= "remote"
+    
+    os.mkdir (datasource_id)
+    grabFiles(dbh1, dbh2, datasource_id, urlstem, date_to_start)
+    dbh1.close()
+else:
+	print ("You need both a datasource_id and a date to start on your commandline.")
+	exit;
+
+
