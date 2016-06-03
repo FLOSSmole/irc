@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 ## This program is free software; you can redistribute it
 ## and/or modify it under the same terms as Perl itself.
 ## Please see the Perl Artistic License 2.0.
@@ -135,7 +136,7 @@ if datasource_id and dateToStart and password:
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s)", 
                     (str(newDS), 
                      forgeID,
-                     'Ubunto IRC' + '/' +str(yyyy) + '/' +str(mm)+ '/' + str(dd) +"%23ubuntu.txt",
+                     'Ubuntu IRC' + '/' +str(yyyy) + '/' +str(mm)+ '/' + str(dd) +"%23ubuntu.txt",
                      datetime.datetime.now(),
                      'msquire@elon.edu', 
                      saveLoc, 
@@ -145,6 +146,33 @@ if datasource_id and dateToStart and password:
             except pymysql.Error as error:
                 print(error)
                 db1.rollback()
+                
+        #======
+        # REMOTE
+        #======
+            try:
+                cursor2.execute("INSERT INTO datasources(datasource_id, \
+                    forge_id, \
+                    friendly_name, \
+                    date_donated, \
+                    contact_person, \
+                    comments, \
+                    start_date, \
+                    end_date)  \
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)", 
+                    (str(newDS), 
+                     forgeID,
+                     'Ubuntu IRC' + '/' +str(yyyy) + '/' +str(mm)+ '/' + str(dd) +"%23ubuntu.txt",
+                     datetime.datetime.now(),
+                     'msquire@elon.edu', 
+                     saveLoc, 
+                     datetime.datetime.now(), 
+                     datetime.datetime.now()))
+                db2.commit() 
+            except pymysql.Error as error:
+                print(error)
+                db2.rollback()
+                
         #increment date by one
         dateS = dateS + timedelta(days=1)
         newDS += 1
