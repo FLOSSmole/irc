@@ -86,9 +86,7 @@ def grabFiles(dbh1, dbh2, datasource_id, urlstem, date_to_start):
         fileName= "/"+str(yyyy)+"-"+str(mm)+ "-"+str(dd)
         #convert month to three letter abbr
             
-            
-        dates= dates + timedelta(days=1)
-        newds= int(newds) +1     
+               
         print(yyyy)
         print(mm)
         print(dd)
