@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+# -*- coding: utf-8 -*-
 ## This program is free software; you can redistribute it
 ## and/or modify it under the same terms as Perl itself.
 ## Please see the Perl Artistic License.
@@ -97,13 +97,10 @@ if datasource_id and password:
         print ("==================\n")
         
         # open the file
-        try:
-            log = codecs.open(fileLoc, 'r', encoding='utf-8', errors='ignore')
-            line=log.read()
-            line= line[2:]
-            line= line[:-1]
-        except pymysql.Error as err:
-            print(err)
+        log = codecs.open(fileLoc, 'r', encoding='utf-8', errors='ignore')
+        line=log.read()
+        line= line[2:]
+        line= line[:-1]
         
         # PARSE OUT DATE
         # date is in the filename, in the format:
