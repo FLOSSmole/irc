@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+# -*- coding: utf-8 -*-
 ## This program is free software; you can redistribute it
 ## and/or modify it under the same terms as Perl itself.
 ## Please see the Perl Artistic License.
