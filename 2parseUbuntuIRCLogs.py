@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+#!/usr/bin/perl
 ## This program is free software; you can redistribute it
 ## and/or modify it under the same terms as Perl itself.
 ## Please see the Perl Artistic License.
@@ -46,6 +46,7 @@ import datetime
 datasource_id = str(sys.argv[1])
 password      = str(sys.argv[2])
 forge_id      = 43
+newDS         = datasource_id
 
 if datasource_id and password:
 	# connect to db (once at local grid6, and once at Syracuse)
@@ -85,12 +86,12 @@ if datasource_id and password:
     selectQuery = "SELECT datasource_id, comments \
 		            FROM datasources \
             		WHERE datasource_id >= %s \
-		            AND forge_id=%s"  
+		            AND forge_id=%s "  
     cursor1.execute(selectQuery,(datasource_id,forge_id))
     rows = cursor1.fetchall()    
         
     for row in rows : 
-        ds      = row[0]
+        newDS   = row[0]
         fileLoc = row[1] # the file location is kept in the 'comments' field
         print ("==================\n")
 
@@ -115,7 +116,8 @@ if datasource_id and password:
                 datelog = correctForm.group(1) + "-" + correctForm.group(2) + "-" + correctForm.group(3)
             else:
                 datelog = formatting.group(2)
-
+        
+        
         # PARSE OUT DETAILS        
         linenum = 0;
         for line in log:    
@@ -146,9 +148,10 @@ if datasource_id and password:
                 line_message = systemChecker.group(1)
                 timelog = None
                 send_user = None
+                
             
             if ((datasource_id) and (messageType != "")):
-                insertQuery="INSERT IGNORE INTO ubuntu_irc (datasource_id,\
+                insertQuery="INSERT INTO ubuntu_irc (datasource_id,\
                              line_num,\
                              full_line_text,\
                              line_message,\
@@ -159,12 +162,14 @@ if datasource_id and password:
                              last_updated)\
                              VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s)"
                 currDate=datetime.datetime.now()
+                print(insertQuery)
+                
                 #======
                 # LOCAL
                 #======
                 try:
                     cursor2.execute(insertQuery,
-                                    (datasource_id,
+                                    (newDS,
                                      linenum,
                                      str(line),
                                      str(line_message),
@@ -183,7 +188,7 @@ if datasource_id and password:
                 #======
                 try:
                     cursor3.execute(insertQuery,
-                                    (datasource_id,
+                                    (newDS,
                                      linenum,
                                      str(line),
                                      str(line_message),
