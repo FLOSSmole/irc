@@ -49,13 +49,13 @@ import codecs
 import os
 
 datasource_id = str(sys.argv[1])
-date_to_start = str(sys.argv[2])
+dateToStart   = str(sys.argv[2])
 password      = str(sys.argv[3])
 urlstem       = "http://irclog.perlgeek.de/perl6/"
-forge_id      = 65
-newDS         = datasource_id
+forgeID       = 65
+newDS         = int(datasource_id)
 
-if datasource_id and date_to_start and password:
+if datasource_id and dateToStart and password:
     try:
         db1 = pymysql.connect(host='grid6.cs.elon.edu',
                                   database='ossmole_merged',
@@ -83,15 +83,14 @@ if datasource_id and date_to_start and password:
     
     # get yesterday's date - we will stop collecting on that date
     yesterday = datetime.datetime.now()-timedelta(days= 1)
-    dateS = datetime.datetime(int(p_date_to_start[0:4]),int(p_date_to_start[4:-2]),int(p_date_to_start[6:]))
+    dateS = datetime.datetime(int(dateToStart[0:4]),int(dateToStart[4:-2]),int(dateToStart[6:]))
     while(dateS <= yesterday):
-        print ("working on ...")
-        print (date)
+        print ("working on ...", dateS)
         
         # get yyyy, mm, dd to put into URL
         yyyy = dateS.year
         mm   = dateS.month
-        dd   = dates.day
+        dd   = dateS.day
         # put leading zeroes on dd & mm
         if (dd < 10):
             dd = str("0" + str(dd))
@@ -128,37 +127,37 @@ if datasource_id and date_to_start and password:
         #======
         # LOCAL
         #======
-            try:
-                cursor1.execute(insertQuery, 
-                    (str(newDS), 
-                     forge_id,
-                     'Perl 6 IRC ' + str(yyyy) +str(mm) + str(dd),
-                     datetime.datetime.now(),
-                     'msquire@elon.edu', 
-                     saveLoc, 
-                     datetime.datetime.now(), 
-                     datetime.datetime.now()))
-                db1.commit() 
-            except pymysql.Error as error:
-                print(error)
-                db1.rollback()
+        try:
+            cursor1.execute(insertQuery, 
+                (str(newDS), 
+                 forgeID,
+                 'Perl 6 IRC ' + str(yyyy) +str(mm) + str(dd),
+                 datetime.datetime.now(),
+                 'msquire@elon.edu', 
+                 saveLoc, 
+                 datetime.datetime.now(), 
+                 datetime.datetime.now()))
+            db1.commit() 
+        except pymysql.Error as error:
+            print(error)
+            db1.rollback()
         #======
         # REMOTE
         #======               
-            try:
-                cursor2.execute(insertQuery, 
-                    (str(newDS), 
-                     forge_id,
-                     'Perl 6 IRC ' + str(yyyy) +str(mm) + str(dd),
-                     datetime.datetime.now(),
-                     'msquire@elon.edu', 
-                     saveLoc, 
-                     datetime.datetime.now(), 
-                     datetime.datetime.now()))
-                db2.commit() 
-            except pymysql.Error as error:
-                print(error)
-                db2.rollback()
+        try:
+            cursor2.execute(insertQuery, 
+                (str(newDS), 
+                 forgeID,
+                 'Perl 6 IRC ' + str(yyyy) +str(mm) + str(dd),
+                 datetime.datetime.now(),
+                 'msquire@elon.edu', 
+                 saveLoc, 
+                 datetime.datetime.now(), 
+                 datetime.datetime.now()))
+            db2.commit() 
+        except pymysql.Error as error:
+            print(error)
+            db2.rollback()
         #increment date by one
         dateS = dateS + timedelta(days=1)
         newDS += 1
