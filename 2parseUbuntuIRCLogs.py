@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+# -*- coding: utf-8 -*-
 ## This program is free software; you can redistribute it
 ## and/or modify it under the same terms as Perl itself.
 ## Please see the Perl Artistic License.
@@ -31,10 +31,10 @@
 #
 # purpose: 
 # open each IRC log in the directory, parse out the interesting bits
-# notes:
-# START WITH THE FIRST DS IN THE DB YOU ARE INTERESTED IN
-# Does not need to be the latest one
+# save to database table
 #
+# each date = one datasource_id
+# each line is incremented with a number for that date
 ################################################################
 import pymysql
 import re
@@ -162,7 +162,6 @@ if datasource_id and password:
                              last_updated)\
                              VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s)"
                 currDate=datetime.datetime.now()
-                print(insertQuery)
                 
                 #======
                 # LOCAL
