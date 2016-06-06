@@ -24,17 +24,13 @@
 ## and analyses of open source projects.  Available at http://flossmole.org 
 ################################################################
 # usage:
-# > python3 2parseDjangoLogs.py <datasource_id> 
+# > python3 2parseDjangoLogs.py <datasource_id> <password>
 #
 # example usage:
-# > python3 2parseDjangoIRCLogs.py 62204 
+# > python3 2parseDjangoIRCLogs.py 62204 password
 #
 # purpose: 
 # open each IRC log in the directory, parse out the interesting bits
-# notes:
-# START WITH THE FIRST DS IN THE DB YOU ARE INTERESTED IN
-# Does not need to be the latest one
-#
 ################################################################
 import pymysql
 import re
