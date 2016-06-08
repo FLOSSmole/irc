@@ -1,3 +1,4 @@
+#
 #!/usr/bin/perl
 ## This program is free software; you can redistribute it
 ## and/or modify it under the same terms as Perl itself.
@@ -35,54 +36,20 @@
 # Does not need to be the latest one
 #
 ################################################################
-use strict;
-use DBI;
-use HTML::Entities;
+import re
+import codecs
+import pymysql
+import sys
+import datetime
+import html
 
-my $datasource_id = shift @ARGV;
-my $forge_id = 65;
+datasource_id = int(sys.argv[1])
+pw=str(sys.argv[2])
+forge_id = 65
 
-if ($datasource_id)
-{
-    # connect to db (once at local , and once at remote)
-    # dsn takes the format of "DBI:mysql:ossmole_merged:local.host"
-    my $dsn1 = "DBI:mysql:ossmole_merged:local.host";
-    my $dbh1 = DBI->connect($dsn1, "user", "pass", {RaiseError=>1});
-    
-    my $dsn2 = "DBI:mysql:irc:local.host";
-    my $dbh2 = DBI->connect($dsn2, "user", "pass", {RaiseError=>1});
-    
-    my $dsn3 = "DBI:mysql:irc:remote.host";
-    my $dbh3 = DBI->connect($dsn3, "user", "pass", {RaiseError=>1});
-    
-    # get the file list from the 'comments' field in the datasources table
-    my $sth1 = $dbh1->prepare(qq{select datasource_id, comments 
-        from ossmole_merged.datasources 
-        where datasource_id >= ? 
-        and forge_id=?});
-    $sth1->execute($datasource_id, $forge_id);
-    my $filesInDB = $sth1->fetchall_arrayref;
-    $sth1->finish();
 
-    foreach my $row (@$filesInDB) 
-    {
-        my ($ds, $fileLoc) = @$row;
-        print "==================\n";
-        parseFile($dbh2, $dbh3, $ds, $fileLoc);
-    }       
-    
-    $dbh1->disconnect(); 
-    $dbh2->disconnect();
-    $dbh3->disconnect();
-}
-else
-{
-    print "You need both a datasource_id and a date to start on your commandline.";
-    exit;
-}
 
 # --------------------------------------------------
-# subroutine: parseFile
 # takes: two database connections (local and remote) and a datasource_id
 # purpose:
 # --get each file on disk
@@ -90,47 +57,91 @@ else
 # --parse out the pieces of the lines
 # --write each line to the irc table in both local and remote db
 # --------------------------------------------------
-sub parseFile($dbh2, $dbh3, $ds, $fileLoc)
-{
-    my $p_dbh2  = $_[0];
-    my $p_dbh3  = $_[1];
-    my $p_ds    = $_[2];
-    my $p_fileLoc = $_[3];
 
-    #date is in the filename, in the format:
+if (datasource_id):
+    # connect to db (once at local , and once at remote)
+    # dsn takes the format of "DBI:mysql:ossmole_merged:local.host"
+    dbh1 = pymysql.connect(host="grid6.cs.elon.edu",
+                      user="megan",
+                      passwd=pw,
+                      db="irc",
+                      use_unicode=True,
+                      charset="utf8")
+                      
+    cursor1 = dbh1.cursor()
+
+    dbh2 = pymysql.connect(host="grid6.cs.elon.edu",
+                      user="megan",
+                      passwd=pw,
+                      db="irc",
+                      use_unicode=True,
+                      charset="utf8")
+    cursor2 = dbh2.cursor()
+
+    # get the file list from the 'comments' field in the datasources table    
+    cursor2.execute('SELECT datasource_id, comments \
+                 FROM datasources1 \
+                 WHERE datasource_id >= %s AND forge_id = %s',
+                (datasource_id, forge_id))
+                
+    rows = cursor2.fetchall()
+  
+
+    dbh3 = pymysql.connect(host="flossdata.syr.edu",
+              user="megan",
+              passwd=pw,
+              db="puppet_irc",
+              use_unicode=True,
+              charset="utf8")
+              
+    cursor3 = dbh3.cursor() 
+
+
+    for row in rows : 
+        ds= row[0]
+        fileLoc= row[1]
+        print ("==================\n")
+    # date is in the filename, in the format:
     # 51255/20150406
-    my $datelog ="";
-    if ($p_fileLoc =~ m{^(.*?)\/(.*?)$}s)
-    {              
-        my $tempdate = $2;
-        print "got [$tempdate] for date\n";
+    datelog =""
+    formatting= re.search("^(.*?)\/(.*?)$",fileLoc)
+    if formatting:
+        tempdate = formatting.group(2);
+        print("got ", tempdate, " for date")
         
-        if ($tempdate =~ m{^(\d\d\d\d)(\d\d)(\d\d)}s)
-        {
-            $datelog = $1 . "-" . $2 . "-" . $3;
-        }
-    }
+    date = re.search("^(\d\d\d\d)(\d\d)(\d\d)$",tempdate)  
     
+    if (date):
+        datelog = date.group(1)+ "-" + date.group(2) + "-" + date.group(3)
+
     # open the file
-    print "opening file: $p_fileLoc\n";
-    open (FILE, $p_fileLoc);
-    undef $/;
-    my $filestring = <FILE>;
-    my $line_num = 0;
-    
+    print("opening file: "+fileLoc)
+    try:
+        log = codecs.open(fileLoc, 'r', encoding='utf-8', errors='ignore')
+        line=log.read()
+        line= line[2:]
+        line= line[:-1]
+        log=line
+        
+    except pymysql.Error as err:
+        print(err)
+
     # the perl6 data is in an html table
     # (there's a plaintext version but it only has mention & action, not system messages) 
-    if ($filestring =~ m{<table id=\"log\"(.*?)<\/table>}s)
-    {
-        my $table = $1;
-        my @trs = split(/<\/tr>/, $table);
-        foreach my $tr (@trs)
-        {
-            my $send_user = "";
-            my $timelog = "";
-            my $line_message = "";
-            my $type = "";
-            $line_num++;
+    regularLOG=re.search('<table id=\"log\"(.*?)<\/table>',log)
+    
+    if (regularLOG):
+        table=regularLOG.group(1)
+        trs = table.split("</tr>")
+        
+        line_num=0
+        for tr in trs:
+            
+            send_user = ""
+            timelog = ""
+            line_message = ""
+            messageType = ""
+            line_num= line_num+1
             
             # here is the pattern for a system message:
             #<tr id="id_l2" class="new special dark">
@@ -154,91 +165,93 @@ sub parseFile($dbh2, $dbh3, $ds, $fileLoc)
             #</tr>
             
             # first case: system message (blank nick td)
-            if ($tr =~ m{class\=\"nick\"\>\<\/td\>}s)
-            {
-                $send_user = undef;
-                $type = "system";
-            }
+            systemMessage=re.search("class\=\"nick\"\>\<\/td\>",tr)
+            regMessage=re.search("\<td class\=\"msg \&",tr)
+            regUsername=re.search("class=\"nick\">(.*?)<\/td>",tr)
+            regActionmessage=re.search("\<td class\=\"msg act",tr)
+            regTimelog=re.search('td class=\"time\"(.*?)\>\<(.*?)\>(.*?)\<\/a\>',tr)
+            regMessage=re.search('td class=\"msg(.*?)\>(.*?)<\/td\>',tr)
+            
+            if (systemMessage):
+                send_user = None
+                messageType = "system"
+            
             # second case: regular message
-            elsif($tr =~ m{\<td class\=\"msg \&}s)
-            {
-                $type = "message";
-                if ($tr =~ m{class="nick">(.*?)<\/td>}s)
-                {
-                    $send_user = $1;
-                }
-            }
+            
+            elif(regMessage):
+                messageType = "message"
+                if (regUsername):
+                    send_user=regUsername.group(1)
+                    
+
             # third case: action message
-            elsif($tr =~ m{\<td class\=\"msg act}s)
-            {
-                $type = "action";
-                if ($tr =~ m{class="nick">\*(.*?)<\/td>}s)
-                {
-                    $send_user = $1;
-                    $send_user =~ s/^\W+//; #strip off weird control char in this string!
-                }
-            }   
+            elif(regActionmessage):
+                messageType = "action"
+                if (regUsername):
+                    send_user=regUsername.group(1)[9:]
+                    
                 
             # grab timelog: 
             #<td class="time" id="i_-799986"><a href="/perl6/2005-02-26#i_-799986">13:55</a></td>
-            if ($tr =~ m{td class=\"time\"(.*?)\>\<(.*?)\>(.*?)\<\/a\>}s)
-            {
-                $timelog = $3;
-            }
+            if (regTimelog):
+                timelog = regTimelog.group(3)
             
             #grab message
             #<td class="msg act &#39;&#39;">places a sane-o-meter on the channel, wondering if it'll score above zero.</td>
-            if ($tr =~ m{td class=\"msg(.*?)\>(.*?)<\/td\>}s)
-            {
-                $line_message = $2;
+            if (regMessage):
+                line_message = regMessage.group(2)
                 # clean up html
-                $line_message = decode_entities($line_message);
-            }
+                line_message = html.unescape(line_message)
     
-            print "inserting row for $line_num...\n";
+            print( "inserting row for",line_num)
             
-            # insert row into table 
-            #======
-            # LOCAL
-            #======    
-            if ($type ne "")
-            {           
-                my $insert2 = $p_dbh2->prepare(qq{
-                                INSERT IGNORE INTO perl6_irc
-                                    (datasource_id, 
-                                    line_num,
-                                    line_message,
-                                    date_of_entry,
-                                    time_of_entry,
-                                    type,
-                                    send_user,
-                                    last_updated) 
-                                VALUES (?,?,?,?,?,?,?,NOW())
-                                });
-                $insert2->execute($p_ds, $line_num, $line_message, $datelog, $timelog, $type, $send_user)
-                    or die "Couldn't execute statement: " . $insert2->errstr;
-                $insert2->finish();
-    
-                #======
-                # REMOTE
-                #======
-                my $insert3 = $p_dbh3->prepare(qq{
-                                INSERT IGNORE INTO perl6_irc
-                                    (datasource_id, 
-                                    line_num,
-                                    line_message,
-                                    date_of_entry,
-                                    time_of_entry,
-                                    type,
-                                    send_user,
-                                    last_updated) 
-                                VALUES (?,?,?,?,?,?,?,NOW())
-                                });
-                $insert3->execute($p_ds, $line_num, $line_message, $datelog, $timelog, $type, $send_user)
-                    or die "Couldn't execute statement on REMOTE: " . $insert3->errstr;
-                $insert3->finish();
-            }
-        } 
-    }
-}
-        
+
+            
+            insertQuery="INSERT IGNORE INTO perl6_irc \
+                                    (datasource_id,line_num,\
+                                    line_message,\
+                                    date_of_entry,\
+                                    time_of_entry,\
+                                    type,\
+                                    send_user,\
+                                    last_updated)\
+                                    VALUES(%s,%s,%s,%s,%s,%s,%s,%s)"
+                                    
+            dataValues=(ds,int(line_num),line_message,datelog,timelog,messageType,send_user,datetime.datetime.now())                    
+            
+            
+            
+            if (messageType != ""):
+                try:
+                    # insert row into table 
+                    #======
+                    # LOCAL
+                    #====== 
+                    cursor1.execute(insertQuery,dataValues)
+                    dbh1.commit()
+                except pymysql.Error as error:
+                    print(error)
+                    dbh1.rollback()
+                try:
+                    # insert row into table 
+                    #======
+                    # REMOTE
+                    #====== 
+                    cursor3.execute(insertQuery,dataValues)
+                except pymysql.Error as error:
+                    print(error)
+                    dbh3.rollback() 
+                
+           
+                    
+    cursor1.close()    
+    cursor2.close()
+    cursor3.close()
+    dbh2.close()
+    dbh1.close()
+    dbh3.close()
+    print("done")
+
+else:
+	print ("You need both a datasource_id and a date to start on your commandline.")
+	exit; 
