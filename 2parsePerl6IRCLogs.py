@@ -86,7 +86,7 @@ if datasource_id and pw:
                 
     rows = cursor1.fetchall()
 
-for row in rows : 
+    for row in rows : 
         ds = row[0]
         fileLoc = row[1]
         print ("==================\n")
