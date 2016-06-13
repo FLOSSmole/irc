@@ -150,11 +150,11 @@ if datasource_id and pw:
             #</tr>
             
             systemMessage    = re.search("class\=\"nick\"\>\<\/td\>",tr)
-            regMessage       = re.search("\<td class\=\"msg \&",tr)
+            regMessage1      = re.search("\<td class\=\"msg \&",tr)
             regUsername      = re.search("class=\"nick\">(.*?)<\/td>",tr)
             regActionmessage = re.search("\<td class\=\"msg act",tr)
             regTimelog       = re.search('td class=\"time\"(.*?)\>\<(.*?)\>(.*?)\<\/a\>',tr)
-            regMessage       = re.search('td class=\"msg(.*?)\>(.*?)<\/td\>',tr)
+            regMessage2      = re.search('td class=\"msg(.*?)\>(.*?)<\/td\>',tr)
             
             # first case: system message (blank nick td)
             if (systemMessage):
@@ -162,7 +162,7 @@ if datasource_id and pw:
                 messageType = "system"
             
             # second case: regular message
-            elif(regMessage):
+            elif(regMessage1):
                 messageType = "message"
                 if (regUsername):
                     send_user=regUsername.group(1)
@@ -180,7 +180,7 @@ if datasource_id and pw:
             
             # grab message
             # <td class="msg act &#39;&#39;">places a sane-o-meter on the channel, wondering if it'll score above zero.</td>
-            if (regMessage):
+            if (regMessage2):
                 line_message = regMessage.group(2)
                 # clean up html
                 line_message = html.unescape(line_message)
