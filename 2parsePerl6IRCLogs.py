@@ -79,13 +79,14 @@ if datasource_id and pw:
 
     # get the file list from the 'comments' field in the datasources table    
     cursor1.execute('SELECT datasource_id, comments \
-                 FROM datasources1 \
-                 WHERE datasource_id >= %s AND forge_id = %s',
+                 FROM datasources \
+                 WHERE datasource_id >= %s \
+                 AND forge_id = %s',
                 (datasource_id, forge_id))
                 
     rows = cursor1.fetchall()
 
-    for row in rows : 
+for row in rows : 
         ds = row[0]
         fileLoc = row[1]
         print ("==================\n")
@@ -150,12 +151,12 @@ if datasource_id and pw:
                 #<td class="msg act &#39;&#39;">places a sane-o-meter on the channel, wondering if it'll score above zero.</td>
                 #</tr>
                 
-                systemMessage    = re.search("class\=\"nick\"\>\<\/td\>",tr)
-                regMessage      = re.search("\<td class\=\"msg \&",tr)
-                actionMessage = re.search("\<td class\=\"msg act",tr)
-                regUsername      = re.search("class=\"nick\">(.*?)<\/td>",tr)
-                regTimelog       = re.search('td class=\"time\"(.*?)\>\<(.*?)\>(.*?)\<\/a\>',tr)
-                regLineMessage      = re.search('td class=\"msg(.*?)\>(.*?)<\/td\>',tr)
+                systemMessage  = re.search("class\=\"nick\"\>\<\/td\>",tr)
+                regMessage     = re.search("\<td class\=\"msg \&",tr)
+                actionMessage  = re.search("\<td class\=\"msg act",tr)
+                regUsername    = re.search("class=\"nick\">(.*?)<\/td>",tr)
+                regTimelog     = re.search('td class=\"time\"(.*?)\>\<(.*?)\>(.*?)\<\/a\>',tr)
+                regLineMessage = re.search('td class=\"msg(.*?)\>(.*?)<\/td\>',tr)
                 
                 # first case: system message (blank nick td)
                 if (systemMessage):
@@ -182,14 +183,10 @@ if datasource_id and pw:
                 # grab message
                 # <td class="msg act &#39;&#39;">places a sane-o-meter on the channel, wondering if it'll score above zero.</td>
                 if (regLineMessage):
-                    line_message = regMessage.group(2)
+                    line_message = regLineMessage.group(2)
                     # clean up html
                     line_message = html.unescape(line_message)
-        
-                print( "inserting row for", line_num)
-                
-    
-                
+                    
                 insertQuery="INSERT IGNORE INTO perl6_irc \
                                         (datasource_id,line_num,\
                                         line_message,\
@@ -200,38 +197,26 @@ if datasource_id and pw:
                                         last_updated)\
                                         VALUES(%s,%s,%s,%s,%s,%s,%s,%s)"
                                         
-                dataValues=(ds,int(line_num),line_message,datelog,timelog,messageType,send_user,datetime.datetime.now())                    
+                dataValues=(ds,line_num,line_message,datelog,timelog,messageType,send_user,datetime.datetime.now())                    
                 
-                
-                
-                if (messageType != ""):
+                if messageType != "":
                     try:
-                        # insert row into table 
-                        #======
-                        # LOCAL
-                        #====== 
-                        cursor1.execute(insertQuery,dataValues)
-                        db1.commit()
+                        cursor2.execute(insertQuery,dataValues)
+                        db2.commit()
                     except pymysql.Error as error:
                         print(error)
-                        db1.rollback()
+                        db2.rollback()
                     try:
-                        # insert row into table 
-                        #======
-                        # REMOTE
-                        #====== 
                         cursor3.execute(insertQuery,dataValues)
                     except pymysql.Error as error:
                         print(error)
                         db3.rollback() 
-                    
-               
-                        
+             
         cursor1.close()    
         cursor2.close()
         cursor3.close()
-        db2.close()
         db1.close()
+        db2.close()
         db3.close()
         print("done")
 
