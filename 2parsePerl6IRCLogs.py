@@ -89,151 +89,151 @@ if datasource_id and pw:
         ds = row[0]
         fileLoc = row[1]
         print ("==================\n")
-    # date is in the filename, in the format:
-    # 51255/20150406
-    datelog    = ""
-    formatting = re.search("^(.*?)\/(.*?)$",fileLoc)
-    
-    if formatting:
-        tempdate = formatting.group(2);
-        print("got ", tempdate, " for date")
+        # date is in the filename, in the format:
+        # 51255/20150406
+        datelog    = ""
+        formatting = re.search("^(.*?)\/(.*?)$",fileLoc)
         
-    date = re.search("^(\d\d\d\d)(\d\d)(\d\d)$",tempdate)  
-    
-    if (date):
-        datelog = date.group(1)+ "-" + date.group(2) + "-" + date.group(3)
-
-    # open the file
-    print("opening file: " + fileLoc)
-
-    log  = codecs.open(fileLoc, 'r', encoding='utf-8', errors='ignore')
-    line = log.read()
-    line = line[2:]
-    line = line[:-1]
-    table  = line
-
-    # the perl6 data is in an html table
-    # (there's a plaintext version but it only has mention & action, not system messages) 
-    regularLOG = re.search('<table id=\"log\"(.*?)<\/table>',table)
-    
-    
-    if (regularLOG):
-        table = regularLOG.group(1)
-        trs   = table.split("</tr>")
+        if formatting:
+            tempdate = formatting.group(2);
+            print("got ", tempdate, " for date")
+            
+        date = re.search("^(\d\d\d\d)(\d\d)(\d\d)$",tempdate)  
         
-        line_num = 0
-        for tr in trs:
-            send_user    = ""
-            timelog      = ""
-            line_message = ""
-            messageType  = ""
-            line_num     += 1
-            
-            # here is the pattern for a system message:
-            #<tr id="id_l2" class="new special dark">
-            #<td class="time" id="i_-799999"><a href="/perl6/2005-02-26#i_-799999">13:45</a></td>
-            #<td style="color: 0" class="nick"></td>
-            #<td class="msg &#39;&#39;">ilogger starts logging <a href="/perl6/today">#perl6</a> at Sat Feb 26 13:45:34 2005</td>
-            #</tr>
-            
-            # here is the pattern for a regular message:
-            #<tr id="id_l4" class="new nick nick_feb">
-            #<td class="time" id="i_-799997"><a href="/perl6/2005-02-26#i_-799997">13:46</a></td>
-            #<td style="color: #04000e" class="nick">feb</td>
-            #<td class="msg &#39;&#39;">autrijus: you're welcome</td>
-            #</tr>
-
-            # here is the pattern for an action message:
-            #<tr id="id_l15" class="new nick nick_Odin- dark">
-            #<td class="time" id="i_-799986"><a href="/perl6/2005-02-26#i_-799986">13:55</a></td>
-            #<td style="color: #010002" class="nick">* Odin-</td>
-            #<td class="msg act &#39;&#39;">places a sane-o-meter on the channel, wondering if it'll score above zero.</td>
-            #</tr>
-            
-            systemMessage    = re.search("class\=\"nick\"\>\<\/td\>",tr)
-            regMessage      = re.search("\<td class\=\"msg \&",tr)
-            actionMessage = re.search("\<td class\=\"msg act",tr)
-            regUsername      = re.search("class=\"nick\">(.*?)<\/td>",tr)
-            regTimelog       = re.search('td class=\"time\"(.*?)\>\<(.*?)\>(.*?)\<\/a\>',tr)
-            regLineMessage      = re.search('td class=\"msg(.*?)\>(.*?)<\/td\>',tr)
-            
-            # first case: system message (blank nick td)
-            if (systemMessage):
-                send_user   = None
-                messageType = "system"
-            
-            # second case: regular message
-            elif(regMessage):
-                messageType = "message"
-                if (regUsername):
-                    send_user=regUsername.group(1)
-
-            # third case: action message
-            elif(actionMessage):
-                messageType = "action"
-                if (regUsername):
-                    send_user=regUsername.group(1)[9:]
-
-            # grab timelog: 
-            # <td class="time" id="i_-799986"><a href="/perl6/2005-02-26#i_-799986">13:55</a></td>
-            if (regTimelog):
-                timelog = regTimelog.group(3)
-            
-            # grab message
-            # <td class="msg act &#39;&#39;">places a sane-o-meter on the channel, wondering if it'll score above zero.</td>
-            if (regLineMessage):
-                line_message = regLineMessage.group(2)
-                # clean up html
-                line_message = html.unescape(line_message)
+        if (date):
+            datelog = date.group(1)+ "-" + date.group(2) + "-" + date.group(3)
     
-            print( "inserting row for", line_num)
+        # open the file
+        print("opening file: " + fileLoc)
+    
+        log  = codecs.open(fileLoc, 'r', encoding='utf-8', errors='ignore')
+        line = log.read()
+        line = line[2:]
+        line = line[:-1]
+        table  = line
+    
+        # the perl6 data is in an html table
+        # (there's a plaintext version but it only has mention & action, not system messages) 
+        regularLOG = re.search('<table id=\"log\"(.*?)<\/table>',table)
+        
+        
+        if (regularLOG):
+            table = regularLOG.group(1)
+            trs   = table.split("</tr>")
             
-
-            
-            insertQuery="INSERT IGNORE INTO perl6_irc \
-                                    (datasource_id,line_num,\
-                                    line_message,\
-                                    date_of_entry,\
-                                    time_of_entry,\
-                                    type,\
-                                    send_user,\
-                                    last_updated)\
-                                    VALUES(%s,%s,%s,%s,%s,%s,%s,%s)"
-                                    
-            dataValues=(ds,int(line_num),line_message,datelog,timelog,messageType,send_user,datetime.datetime.now())                    
-            
-            
-            
-            if (messageType != ""):
-                try:
-                    # insert row into table 
-                    #======
-                    # LOCAL
-                    #====== 
-                    cursor1.execute(insertQuery,dataValues)
-                    db1.commit()
-                except pymysql.Error as error:
-                    print(error)
-                    db1.rollback()
-                try:
-                    # insert row into table 
-                    #======
-                    # REMOTE
-                    #====== 
-                    cursor3.execute(insertQuery,dataValues)
-                except pymysql.Error as error:
-                    print(error)
-                    db3.rollback() 
+            line_num = 0
+            for tr in trs:
+                send_user    = ""
+                timelog      = ""
+                line_message = ""
+                messageType  = ""
+                line_num     += 1
                 
-           
+                # here is the pattern for a system message:
+                #<tr id="id_l2" class="new special dark">
+                #<td class="time" id="i_-799999"><a href="/perl6/2005-02-26#i_-799999">13:45</a></td>
+                #<td style="color: 0" class="nick"></td>
+                #<td class="msg &#39;&#39;">ilogger starts logging <a href="/perl6/today">#perl6</a> at Sat Feb 26 13:45:34 2005</td>
+                #</tr>
+                
+                # here is the pattern for a regular message:
+                #<tr id="id_l4" class="new nick nick_feb">
+                #<td class="time" id="i_-799997"><a href="/perl6/2005-02-26#i_-799997">13:46</a></td>
+                #<td style="color: #04000e" class="nick">feb</td>
+                #<td class="msg &#39;&#39;">autrijus: you're welcome</td>
+                #</tr>
+    
+                # here is the pattern for an action message:
+                #<tr id="id_l15" class="new nick nick_Odin- dark">
+                #<td class="time" id="i_-799986"><a href="/perl6/2005-02-26#i_-799986">13:55</a></td>
+                #<td style="color: #010002" class="nick">* Odin-</td>
+                #<td class="msg act &#39;&#39;">places a sane-o-meter on the channel, wondering if it'll score above zero.</td>
+                #</tr>
+                
+                systemMessage    = re.search("class\=\"nick\"\>\<\/td\>",tr)
+                regMessage      = re.search("\<td class\=\"msg \&",tr)
+                actionMessage = re.search("\<td class\=\"msg act",tr)
+                regUsername      = re.search("class=\"nick\">(.*?)<\/td>",tr)
+                regTimelog       = re.search('td class=\"time\"(.*?)\>\<(.*?)\>(.*?)\<\/a\>',tr)
+                regLineMessage      = re.search('td class=\"msg(.*?)\>(.*?)<\/td\>',tr)
+                
+                # first case: system message (blank nick td)
+                if (systemMessage):
+                    send_user   = None
+                    messageType = "system"
+                
+                # second case: regular message
+                elif(regMessage):
+                    messageType = "message"
+                    if (regUsername):
+                        send_user=regUsername.group(1)
+    
+                # third case: action message
+                elif(actionMessage):
+                    messageType = "action"
+                    if (regUsername):
+                        send_user=regUsername.group(1)[9:]
+    
+                # grab timelog: 
+                # <td class="time" id="i_-799986"><a href="/perl6/2005-02-26#i_-799986">13:55</a></td>
+                if (regTimelog):
+                    timelog = regTimelog.group(3)
+                
+                # grab message
+                # <td class="msg act &#39;&#39;">places a sane-o-meter on the channel, wondering if it'll score above zero.</td>
+                if (regLineMessage):
+                    line_message = regMessage.group(2)
+                    # clean up html
+                    line_message = html.unescape(line_message)
+        
+                print( "inserting row for", line_num)
+                
+    
+                
+                insertQuery="INSERT IGNORE INTO perl6_irc \
+                                        (datasource_id,line_num,\
+                                        line_message,\
+                                        date_of_entry,\
+                                        time_of_entry,\
+                                        type,\
+                                        send_user,\
+                                        last_updated)\
+                                        VALUES(%s,%s,%s,%s,%s,%s,%s,%s)"
+                                        
+                dataValues=(ds,int(line_num),line_message,datelog,timelog,messageType,send_user,datetime.datetime.now())                    
+                
+                
+                
+                if (messageType != ""):
+                    try:
+                        # insert row into table 
+                        #======
+                        # LOCAL
+                        #====== 
+                        cursor1.execute(insertQuery,dataValues)
+                        db1.commit()
+                    except pymysql.Error as error:
+                        print(error)
+                        db1.rollback()
+                    try:
+                        # insert row into table 
+                        #======
+                        # REMOTE
+                        #====== 
+                        cursor3.execute(insertQuery,dataValues)
+                    except pymysql.Error as error:
+                        print(error)
+                        db3.rollback() 
                     
-    cursor1.close()    
-    cursor2.close()
-    cursor3.close()
-    db2.close()
-    db1.close()
-    db3.close()
-    print("done")
+               
+                        
+        cursor1.close()    
+        cursor2.close()
+        cursor3.close()
+        db2.close()
+        db1.close()
+        db3.close()
+        print("done")
 
 else:
 	print ("You need both a datasource_id and a date to start on your commandline.")
