@@ -110,11 +110,14 @@ if datasource_id and pw:
         line = log.read()
         line = line[2:]
         line = line[:-1]
-        log  = line
+        table  = line
 
-    # the perl6 data is in an html table
-    # (there's a plaintext version but it only has mention & action, not system messages) 
-    regularLOG = re.search('<table id=\"log\"(.*?)<\/table>',log)
+        # the perl6 data is in an html table
+        # (there's a plaintext version but it only has mention & action, not system messages) 
+        regularLOG = re.search('<table id=\"log\"(.*?)<\/table>',table)
+    
+    except:
+        print("")
     
     if (regularLOG):
         table = regularLOG.group(1)
@@ -210,10 +213,10 @@ if datasource_id and pw:
                     # LOCAL
                     #====== 
                     cursor1.execute(insertQuery,dataValues)
-                    dbh1.commit()
+                    db1.commit()
                 except pymysql.Error as error:
                     print(error)
-                    dbh1.rollback()
+                    db1.rollback()
                 try:
                     # insert row into table 
                     #======
@@ -222,16 +225,16 @@ if datasource_id and pw:
                     cursor3.execute(insertQuery,dataValues)
                 except pymysql.Error as error:
                     print(error)
-                    dbh3.rollback() 
+                    db3.rollback() 
                 
            
                     
     cursor1.close()    
     cursor2.close()
     cursor3.close()
-    dbh2.close()
-    dbh1.close()
-    dbh3.close()
+    db2.close()
+    db1.close()
+    db3.close()
     print("done")
 
 else:
