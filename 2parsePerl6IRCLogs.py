@@ -182,7 +182,7 @@ if datasource_id and pw:
             # grab message
             # <td class="msg act &#39;&#39;">places a sane-o-meter on the channel, wondering if it'll score above zero.</td>
             if (regLineMessage):
-                line_message = regMessage.group(2)
+                line_message = regLineMessage.group(2)
                 # clean up html
                 line_message = html.unescape(line_message)
     
