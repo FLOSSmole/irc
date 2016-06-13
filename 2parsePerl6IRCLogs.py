@@ -1,10 +1,11 @@
-#
-#!/usr/bin/perl
+# -*- coding: utf-8 -*-
 ## This program is free software; you can redistribute it
 ## and/or modify it under the same terms as Perl itself.
-## Please see the Perl Artistic License.
+## Please see the Perl Artistic License 2.0.
 ## 
-## Copyright (C) 2004-2015 Megan Squire <msquire@elon.edu>
+## Copyright (C) 2004-2016 Megan Squire <msquire@elon.edu>
+## With code contributions from:
+## Greg Batchelor
 ##
 ## We're working on this at http://flossmole.org - Come help us build 
 ## an open and accessible repository for data and analyses for open
@@ -19,15 +20,15 @@
 ##
 ## and
 ##
-## FLOSSmole (2004-2015) FLOSSmole: a project to provide academic access to data 
+## FLOSSmole (2004-2016) FLOSSmole: a project to provide academic access to data 
 ## and analyses of open source projects.  Available at http://flossmole.org 
 #
 ################################################################
 # usage:
-# > perl 2parsePerl6IRCLogs.pl <datasource_id> 
+# > perl 2parsePerl6IRCLogs.py <datasource_id> 
 #
 # example usage:
-# > perl 2parsePerl6IRCLogs.pl 51255 
+# > perl 2parsePerl6IRCLogs.py 62938 
 #
 # purpose: 
 # open each IRC log in the directory, parse out the interesting bits
@@ -44,67 +45,55 @@ import datetime
 import html
 
 datasource_id = int(sys.argv[1])
-pw=str(sys.argv[2])
-forge_id = 65
+pw            = sys.argv[2]
+forge_id      = 65
 
-
-
-# --------------------------------------------------
-# takes: two database connections (local and remote) and a datasource_id
-# purpose:
-# --get each file on disk
-# --pull out the lines
-# --parse out the pieces of the lines
-# --write each line to the irc table in both local and remote db
-# --------------------------------------------------
-
-if (datasource_id):
+if datasource_id and pw:
     # connect to db (once at local , and once at remote)
-    # dsn takes the format of "DBI:mysql:ossmole_merged:local.host"
-    dbh1 = pymysql.connect(host="grid6.cs.elon.edu",
+    db1 = pymysql.connect(host="grid6.cs.elon.edu",
+                      user="megan",
+                      passwd=pw,
+                      db="ossmole_merged",
+                      use_unicode=True,
+                      charset="utf8")
+                      
+    cursor1 = db1.cursor()
+
+
+    db2 = pymysql.connect(host="grid6.cs.elon.edu",
                       user="megan",
                       passwd=pw,
                       db="irc",
                       use_unicode=True,
                       charset="utf8")
                       
-    cursor1 = dbh1.cursor()
-
-    dbh2 = pymysql.connect(host="grid6.cs.elon.edu",
+    cursor2 = db2.cursor()
+    
+    db3 = pymysql.connect(host="flossdata.syr.edu",
                       user="megan",
                       passwd=pw,
                       db="irc",
                       use_unicode=True,
                       charset="utf8")
-    cursor2 = dbh2.cursor()
+    cursor3 = db3.cursor()
 
     # get the file list from the 'comments' field in the datasources table    
-    cursor2.execute('SELECT datasource_id, comments \
+    cursor1.execute('SELECT datasource_id, comments \
                  FROM datasources1 \
                  WHERE datasource_id >= %s AND forge_id = %s',
                 (datasource_id, forge_id))
                 
-    rows = cursor2.fetchall()
-  
-
-    dbh3 = pymysql.connect(host="flossdata.syr.edu",
-              user="megan",
-              passwd=pw,
-              db="puppet_irc",
-              use_unicode=True,
-              charset="utf8")
-              
-    cursor3 = dbh3.cursor() 
-
+    rows = cursor1.fetchall()
 
     for row in rows : 
-        ds= row[0]
-        fileLoc= row[1]
+        ds = row[0]
+        fileLoc = row[1]
         print ("==================\n")
     # date is in the filename, in the format:
     # 51255/20150406
-    datelog =""
-    formatting= re.search("^(.*?)\/(.*?)$",fileLoc)
+    datelog    = ""
+    formatting = re.search("^(.*?)\/(.*?)$",fileLoc)
+    
     if formatting:
         tempdate = formatting.group(2);
         print("got ", tempdate, " for date")
@@ -115,33 +104,29 @@ if (datasource_id):
         datelog = date.group(1)+ "-" + date.group(2) + "-" + date.group(3)
 
     # open the file
-    print("opening file: "+fileLoc)
+    print("opening file: " + fileLoc)
     try:
-        log = codecs.open(fileLoc, 'r', encoding='utf-8', errors='ignore')
-        line=log.read()
-        line= line[2:]
-        line= line[:-1]
-        log=line
-        
-    except pymysql.Error as err:
-        print(err)
+        log  = codecs.open(fileLoc, 'r', encoding='utf-8', errors='ignore')
+        line = log.read()
+        line = line[2:]
+        line = line[:-1]
+        log  = line
 
     # the perl6 data is in an html table
     # (there's a plaintext version but it only has mention & action, not system messages) 
-    regularLOG=re.search('<table id=\"log\"(.*?)<\/table>',log)
+    regularLOG = re.search('<table id=\"log\"(.*?)<\/table>',log)
     
     if (regularLOG):
-        table=regularLOG.group(1)
-        trs = table.split("</tr>")
+        table = regularLOG.group(1)
+        trs   = table.split("</tr>")
         
-        line_num=0
+        line_num = 0
         for tr in trs:
-            
-            send_user = ""
-            timelog = ""
+            send_user    = ""
+            timelog      = ""
             line_message = ""
-            messageType = ""
-            line_num= line_num+1
+            messageType  = ""
+            line_num     += 1
             
             # here is the pattern for a system message:
             #<tr id="id_l2" class="new special dark">
@@ -164,46 +149,43 @@ if (datasource_id):
             #<td class="msg act &#39;&#39;">places a sane-o-meter on the channel, wondering if it'll score above zero.</td>
             #</tr>
             
-            # first case: system message (blank nick td)
-            systemMessage=re.search("class\=\"nick\"\>\<\/td\>",tr)
-            regMessage=re.search("\<td class\=\"msg \&",tr)
-            regUsername=re.search("class=\"nick\">(.*?)<\/td>",tr)
-            regActionmessage=re.search("\<td class\=\"msg act",tr)
-            regTimelog=re.search('td class=\"time\"(.*?)\>\<(.*?)\>(.*?)\<\/a\>',tr)
-            regMessage=re.search('td class=\"msg(.*?)\>(.*?)<\/td\>',tr)
+            systemMessage    = re.search("class\=\"nick\"\>\<\/td\>",tr)
+            regMessage       = re.search("\<td class\=\"msg \&",tr)
+            regUsername      = re.search("class=\"nick\">(.*?)<\/td>",tr)
+            regActionmessage = re.search("\<td class\=\"msg act",tr)
+            regTimelog       = re.search('td class=\"time\"(.*?)\>\<(.*?)\>(.*?)\<\/a\>',tr)
+            regMessage       = re.search('td class=\"msg(.*?)\>(.*?)<\/td\>',tr)
             
+            # first case: system message (blank nick td)
             if (systemMessage):
-                send_user = None
+                send_user   = None
                 messageType = "system"
             
             # second case: regular message
-            
             elif(regMessage):
                 messageType = "message"
                 if (regUsername):
                     send_user=regUsername.group(1)
-                    
 
             # third case: action message
             elif(regActionmessage):
                 messageType = "action"
                 if (regUsername):
                     send_user=regUsername.group(1)[9:]
-                    
-                
+
             # grab timelog: 
-            #<td class="time" id="i_-799986"><a href="/perl6/2005-02-26#i_-799986">13:55</a></td>
+            # <td class="time" id="i_-799986"><a href="/perl6/2005-02-26#i_-799986">13:55</a></td>
             if (regTimelog):
                 timelog = regTimelog.group(3)
             
-            #grab message
-            #<td class="msg act &#39;&#39;">places a sane-o-meter on the channel, wondering if it'll score above zero.</td>
+            # grab message
+            # <td class="msg act &#39;&#39;">places a sane-o-meter on the channel, wondering if it'll score above zero.</td>
             if (regMessage):
                 line_message = regMessage.group(2)
                 # clean up html
                 line_message = html.unescape(line_message)
     
-            print( "inserting row for",line_num)
+            print( "inserting row for", line_num)
             
 
             
@@ -254,4 +236,3 @@ if (datasource_id):
 
 else:
 	print ("You need both a datasource_id and a date to start on your commandline.")
-	exit; 
