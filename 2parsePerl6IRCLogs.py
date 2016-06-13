@@ -105,19 +105,17 @@ if datasource_id and pw:
 
     # open the file
     print("opening file: " + fileLoc)
-    try:
-        log  = codecs.open(fileLoc, 'r', encoding='utf-8', errors='ignore')
-        line = log.read()
-        line = line[2:]
-        line = line[:-1]
-        table  = line
 
-        # the perl6 data is in an html table
-        # (there's a plaintext version but it only has mention & action, not system messages) 
-        regularLOG = re.search('<table id=\"log\"(.*?)<\/table>',table)
+    log  = codecs.open(fileLoc, 'r', encoding='utf-8', errors='ignore')
+    line = log.read()
+    line = line[2:]
+    line = line[:-1]
+    table  = line
+
+    # the perl6 data is in an html table
+    # (there's a plaintext version but it only has mention & action, not system messages) 
+    regularLOG = re.search('<table id=\"log\"(.*?)<\/table>',table)
     
-    except:
-        print("")
     
     if (regularLOG):
         table = regularLOG.group(1)
