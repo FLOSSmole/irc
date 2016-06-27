@@ -1,25 +1,27 @@
 #!/usr/bin/perl
-## This program is free software; you can redistribute it
-## and/or modify it under the same terms as Perl itself.
-## Please see the Perl Artistic License.
-## 
-## Copyright (C) 2004-2014 Megan Squire <msquire@elon.edu>
-##
-## We're working on this at http://flossmole.org - Come help us build 
-## an open and accessible repository for data and analyses for open
-## source projects.
-##
-## If you use this code or data for preparing an academic paper please
-## provide a citation to 
-##
-## Howison, J., Conklin, M., & Crowston, K. (2006). FLOSSmole: 
-## A collaborative repository for FLOSS research data and analyses. 
-## International Journal of Information Technology and Web Engineering, 1(3), 17–26.
-##
-## and
-##
-## FLOSSmole (2004-2014) FLOSSmole: a project to provide academic access to data 
-## and analyses of open source projects.  Available at http://flossmole.org 
+# This program is free software; you can redistribute it
+# and/or modify it under the same terms as Perl itself.
+# Please see the Perl Artistic License.
+#
+# Copyright (C) 2004-2014 Megan Squire <msquire@elon.edu>
+#
+# We're working on this at http://flossmole.org - Come help us build
+# an open and accessible repository for data and analyses for open
+# source projects.
+#
+# If you use this code or data for preparing an academic paper please
+# provide a citation to
+#
+# Howison, J., Conklin, M., & Crowston, K. (2006). FLOSSmole:
+# A collaborative repository for FLOSS research data and analyses.
+# International Journal of Information Technology and
+# Web Engineering, 1(3), 17–26.
+#
+# and
+#
+# FLOSSmole (2004-2014) FLOSSmole: a project to provide
+# academic access to data
+# and analyses of open source projects.  Available at http://flossmole.org
 #
 ################################################################
 # usage:
@@ -29,8 +31,8 @@
 # example usage:
 # > perl parseChatzillaTopicList.pl 8441 log.txt PROD
 #
-# purpose: 
-# open a chatzilla log file with /list in it, and parse out the 
+# purpose:
+# open a chatzilla log file with /list in it, and parse out the
 # topics, channels, and number of users; put these in table in db
 #
 # REQUIRES:
@@ -42,99 +44,112 @@
 # port
 # username
 # password
-# database  
+# database
 #
 ################################################################
-use strict;
-use DBI;
+import pymysql
+import re
+import sys
+import datetime
+import codecs
 
-my $datasource_id = shift @ARGV;
-my $file = shift @ARGV;
-my $DEBUG = shift @ARGV;
-my $DBFILE;
+datasource_id = str(sys.argv[1])
+file = str(sys.argv[2])
+DEBUG = str(sys.argv[3])
+password = str(sys.argv[4])
 
-if ($DEBUG && $datasource_id && $file)
-{
-	# connect to db
-	
-	if ($DEBUG eq "DEBUG")
-	{
-		$DBFILE = "dbInfoTest.txt";
-		print "\n\nDEBUG run\n";
-	}
-	else
-	{
-		$DBFILE = "dbInfo.txt";
-		print "\n\nPRODUCTION run\n";
-	}
-	open (INPUT, $DBFILE);
-	my @dbinfo = <INPUT>;
-	close (INPUT);
+if (DEBUG and datasource_id and file):
 
-	my $host      = $dbinfo[0];
-	my $port      = $dbinfo[1];
-	my $username  = $dbinfo[2];
-	my $password  = $dbinfo[3];
-	my $database  = $dbinfo[4];
-	chomp($host);
-	chomp($port);
-	chomp($username);
-	chomp($password);
-	chomp($database);
-	
-	# dsn takes the format of "DBI:mysql:ossmole_merged:grid6.cs.elon.edu"
-	my $dsn = "DBI:mysql:" . $database . ":" . $host;
-	
-	my $dbh = DBI->connect($dsn, $username, $password, {RaiseError=>1});
-	
-	
+    # connect to db
+
+    if (DEBUG is "DEBUG"):
+
+        DBFILE = "dbInfoTest.txt"
+        print("\n" + DEBUG + "run \n")
+    else:
+        DBFILE = "dbInfo.txt"
+        print("\nPRODUCTION run\n")
+
+    try:
+        dbh1 = pymysql.connect(host='grid6.cs.elon.edu',
+                               database='test',
+                               user='eashwell',
+                               password=password,
+                               charset='utf8')
+    except pymysql.Error as err:
+        print(err)
+    cursor1 = dbh1.cursor()
+    """
+    # =======
+    # REMOTE
+    # =======
+    try:
+        dbh2 = pymysql.connect(host='flossdata.syr.edu',
+                               database='bitcoin',
+                               user='megan',
+                               password=password,
+                               charset='utf8')
+    except pymysql.Error as err:
+        print(err)
+    cursor2 = dbh2.cursor()
+    """
+
     # read in file
-    print "opening file: $file\n";
-    open my $info, $file or die "Could not open $file: $!";
+    print("opening file:" + file)
+    try:
+        log = codecs.open(file, 'r', encoding='utf-8', errors='ignore')
+    except pymysql.Error as error:
+        print(error)
+
     # undef $/;
     # here is a typical line:
-    # [2014-03-25 09:42:12] === #softuni   3   https://softuni.bg/ - Software University Bulgaria
+    # [2014-03-25 09:42:12] === #softuni   3
+    # https://softuni.bg/ - Software University Bulgaria
 
-    while( my $line = <$info>)  
-    {   
+    for line in log:
+
         # parse out channel name
-        $line =~ m{^(.*?)===\s#(.*?)\s+(.*?)\s+(.*?)$};
-        my $junk = $1;
-        my $channel_name = $2;
-        my $num_users    = $3;
-        my $topic        = $4;
-        
-        # remove high ascii from the topic
-        $topic =~ s/[^!-~\s]//g;
-        
-        print "channel name: $channel_name\n";
-        print "num users: $num_users\n";
-        print "topic: $topic\n";
-        print "===\n";
+        line = re.search('^(.*?)===\s#(.*?)\s+(.*?)\s+(.*?)$', str(line))
+        if line:
+            junk = line.group(1)
+            channel_name = line.group(2)
+            num_users = line.group(3)
+            topic = line.group(4)
+        else:
+            junk = ""
+            channel_name = ""
+            num_users = ""
+            topic = ""
+        """
+        print("channel name: " + channel_name)
+        print("num users: " + num_users)
+        print("topic: ", topic)
+        print("===")
+        """
         # insert into database
-        if (($DEBUG eq "PROD"))
-        {
-            my $insert = $dbh->prepare(qq{
-                                INSERT IGNORE INTO fn_irc_channels (
-                                    channel_name, 
-                                    num_users, 
-                                    topic, 
-                                    datasource_id, 
-                                    last_updated)
-                                VALUES (?,?,?,?,NOW())
-                                });
-                $insert->execute($channel_name, $num_users, $topic, $datasource_id)
-                    or die "Couldn't execute statement: " . $insert->errstr;
-                $insert->finish();
-        }
-    }
+        if ((DEBUG == "PROD")):
+            print("ran")
+            try:
+                insertQuery = "INSERT INTO `fn_irc_channels`(`channel_name`,\
+                                                         `num_users`,\
+                                                         `topic`,\
+                                                         `datasource_id`,\
+                                                         `last_updated`)\
+                                                         VALUES (%s,%s,%s,%s,\
+                                                         %s)"
+                cursor1.execute(insertQuery, (channel_name, num_users,
+                                              topic, datasource_id,
+                                              datetime.datetime.now()))
+                dbh1.commit()
+            except pymysql.Error as error:
+                print(error)
+                dbh1.rollback()
 
-    close $info;
+    cursor1.close()
 
-    $dbh->disconnect(); 
-}
-else
-{
-	print "You need a datasource_id, a file, and a debug mode on your commandline.";
-	exit;
-}
+    dbh1.close()
+
+else:
+    print("You need a datasource_id, a file,\
+          and a debug mode on your commandline.")
+    exit
