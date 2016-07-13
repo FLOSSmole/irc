@@ -36,8 +36,8 @@ import pymysql
 import re
 import sys
 import codecs
-import html
 import datetime
+import html
 
 datasource_id = str(sys.argv[1])
 password      = str(sys.argv[2])
@@ -82,12 +82,11 @@ if datasource_id and password:
     selectQuery="SELECT datasource_id, comments \
 		        FROM datasources \
 		        WHERE datasource_id >= %s \
-		        AND forge_id=%s \
-                LIMIT 1"  
+		        AND forge_id=%s"  
     cursor1.execute(selectQuery,(datasource_id,forge_id))
     rows = cursor1.fetchall()
      
-    for row in rows : 
+    for row in rows: 
         ds= row[0]
         fileLoc = row[1] # the comments column holds the file location
         print ("==================\n")
@@ -182,6 +181,7 @@ if datasource_id and password:
                         db3.commit()
                     except pymysql.Error as err:
                         print(err)
+    
     cursor1.close()
     cursor2.close()
     cursor3.close()
@@ -190,3 +190,4 @@ if datasource_id and password:
     db3.close()
 else:
 	print ("You need a datasource_id, dateToStart, and password on your commandline.")
+ 
