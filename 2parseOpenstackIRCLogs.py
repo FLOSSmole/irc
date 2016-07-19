@@ -137,34 +137,36 @@ for row in rows:
         #2015-06-22T00:28:00  *** Bendoin <Bendoin!~bendoin@62.119.162.213> has j
         
         if (newLine[10:11] == "T"):
-            pattern1 = re.compile('^(.*?)T(.*?)\s\s(.*?)$', re.UNICODE)
-            timeOfEntry = pattern1.search(newLine).group(2)
-            restOfLine  = pattern1.search(newLine).group(3)
-            
-            if (restOfLine[0:2] == "* "):
-                lineType = "action"
-                lineMessage = restOfLine[2:]
-                # detect sendUser is the first word after the *
-                pattern1a = re.compile('(.*?) (.*?)', re.UNICODE)
-                sendUser = pattern1a.search(lineMessage).group(1)
-            elif(restOfLine[:1] == "<"):
-                lineType = "message"
-                # detect sendUser is between the <>
-                # detect lineMessage is everything after the >
-                pattern1m = re.compile('\<(.*?)\>(.*?)$', re.UNICODE)
-                sendUser = pattern1m.search(restOfLine).group(1)
-                lineMessage = pattern1m.search(restOfLine).group(2)
-            elif(restOfLine[0:1] == "-"):
-                lineType = "github"
-                lineMessage = restOfLine            
-                pattern1g = re.compile('\-(.*?)\-(.*?)$', re.UNICODE)
-                sendUser = pattern1g.search(restOfLine).group(1)
-            elif(restOfLine[0:3] == "***"):
-                lineType = "system"
-                sendUser = None
-                pattern1s = re.compile('\*\*\*\s+(.*?)$', re.UNICODE)
-                lineMessage = pattern1s.search(restOfLine).group(1)
-           
+            try:
+                pattern1 = re.compile('^(.*?)T(.*?)\s\s(.*?)$', re.UNICODE)
+                timeOfEntry = pattern1.search(newLine).group(2)
+                restOfLine  = pattern1.search(newLine).group(3)
+                
+                if (restOfLine[0:2] == "* "):
+                    lineType = "action"
+                    lineMessage = restOfLine[2:]
+                    # detect sendUser is the first word after the *
+                    pattern1a = re.compile('(.*?) (.*?)', re.UNICODE)
+                    sendUser = pattern1a.search(lineMessage).group(1)
+                elif(restOfLine[:1] == "<"):
+                    lineType = "message"
+                    # detect sendUser is between the <>
+                    # detect lineMessage is everything after the >
+                    pattern1m = re.compile('\<(.*?)\>(.*?)$', re.UNICODE)
+                    sendUser = pattern1m.search(restOfLine).group(1)
+                    lineMessage = pattern1m.search(restOfLine).group(2)
+                elif(restOfLine[0:1] == "-"):
+                    lineType = "github"
+                    lineMessage = restOfLine            
+                    pattern1g = re.compile('\-(.*?)\-(.*?)$', re.UNICODE)
+                    sendUser = pattern1g.search(restOfLine).group(1)
+                elif(restOfLine[0:3] == "***"):
+                    lineType = "system"
+                    sendUser = None
+                    pattern1s = re.compile('\*\*\*\s+(.*?)$', re.UNICODE)
+                    lineMessage = pattern1s.search(restOfLine).group(1)
+            except:
+                continue
         # ==================
         # === scenario 2 ===
         # the times are in []
@@ -174,33 +176,35 @@ for row in rows:
         #[2013/06/22 20:59:24] @ lavaman joined channel #puppet-razor
         
         elif (newLine[:1] == "["):
-            pattern2 = re.compile('^\[(.*?) (.*?)\]\s(.*?)$', re.UNICODE)
-            timeOfEntry = pattern2.search(newLine).group(2)
-            restOfLine  = pattern2.search(newLine).group(3)
-            
-            if (restOfLine[0:2] == "* "):
-                lineType = "action"
-                lineMessage = restOfLine[2:]
-                # detect sendUser is the first word after the *
-                pattern2a = re.compile('(.*?) (.*?)', re.UNICODE)
-                sendUser = pattern2a.search(lineMessage).group(1)
-            elif(restOfLine[:1] == "<"):
-                lineType = "message"
-                # detect sendUser is between the <>
-                # detect lineMessage is everything after the >
-                pattern2m = re.compile('\<(.*?)\>(.*?)$', re.UNICODE)
-                sendUser = pattern2m.search(restOfLine).group(1)
-                lineMessage = pattern2m.search(restOfLine).group(2)
-            elif(restOfLine[0:1] == "-"):
-                lineType = "github"
-                pattern2g = re.compile('\-(.*?)\-(.*?)$', re.UNICODE)
-                sendUser = pattern2g.search(restOfLine).group(1)
-                lineMessage = restOfLine
-            elif(restOfLine[0:2] == "@ "):
-                lineType = "system"
-                sendUser = None
-                lineMessage = restOfLine[2:]
-        
+            try:
+                pattern2 = re.compile('^\[(.*?) (.*?)\]\s(.*?)$', re.UNICODE)
+                timeOfEntry = pattern2.search(newLine).group(2)
+                restOfLine  = pattern2.search(newLine).group(3)
+                
+                if (restOfLine[0:2] == "* "):
+                    lineType = "action"
+                    lineMessage = restOfLine[2:]
+                    # detect sendUser is the first word after the *
+                    pattern2a = re.compile('(.*?) (.*?)', re.UNICODE)
+                    sendUser = pattern2a.search(lineMessage).group(1)
+                elif(restOfLine[:1] == "<"):
+                    lineType = "message"
+                    # detect sendUser is between the <>
+                    # detect lineMessage is everything after the >
+                    pattern2m = re.compile('\<(.*?)\>(.*?)$', re.UNICODE)
+                    sendUser = pattern2m.search(restOfLine).group(1)
+                    lineMessage = pattern2m.search(restOfLine).group(2)
+                elif(restOfLine[0:1] == "-"):
+                    lineType = "github"
+                    pattern2g = re.compile('\-(.*?)\-(.*?)$', re.UNICODE)
+                    sendUser = pattern2g.search(restOfLine).group(1)
+                    lineMessage = restOfLine
+                elif(restOfLine[0:2] == "@ "):
+                    lineType = "system"
+                    sendUser = None
+                    lineMessage = restOfLine[2:]
+            except:
+                continue
         # ==================
         # === scenario 3 ===
         # the time and date are separated by a space
@@ -214,11 +218,11 @@ for row in rows:
         # 2014-02-10 10:39:18	 *	Dominic wonders if there's a language or
         
         elif (newLine[10:11] == " "):
-            pattern3 = re.compile('^(.*?) (.*?)\s+(.*?)$', re.UNICODE)
-            timeOfEntry = pattern3.search(newLine).group(2)
-            restOfLine  = pattern3.search(newLine).group(3)
+            try:            
+                pattern3 = re.compile('^(.*?) (.*?)\s+(.*?)$', re.UNICODE)
+                timeOfEntry = pattern3.search(newLine).group(2)
+                restOfLine  = pattern3.search(newLine).group(3)
             
-            try:
                 if (restOfLine[0:1] == "*"):
                     lineType = "action"
                     pattern3a = re.compile('\*\s+(.*?) (.*?)$', re.UNICODE)
