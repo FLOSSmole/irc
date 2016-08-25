@@ -64,10 +64,7 @@ if (DEBUG and datasource_id and file):
 
     # read in file
     print("opening file:" + file)
-    try:
-        log = codecs.open(file, 'r', encoding='utf-8', errors='ignore')
-    except pymysql.Error as error:
-        print(error)
+    log = codecs.open(file, 'r', encoding='utf-8', errors='ignore')
 
     # undef $/;
     # here is a typical line:
