@@ -33,7 +33,16 @@
 # > python 1getOpenstackIRCLogs.py 63707 2014-06-10 openstack password
 #
 # startdate is the next date you want to collect from in the format 2015-08-31
-# irctype can be one of: openstack, dev, infra, meeting, meeting-alt, meeting-3, dns
+# ds stands for the next available data source
+# the start date is the day after the last known date data was collected
+# irctype can be one of: 
+# openstack
+# dev
+# infra
+# meeting
+# meeting-alt
+# meeting-3
+# dns
 # run this seven times, once for each irc type
 ################################################################
 
@@ -46,11 +55,7 @@ import datetime
 import sys
 import os
 import pymysql
-    
-# takes user inputs
-# ds stand for the next available data source
-#the start date is the day after the last known date data was collected
-# irctype is openstack, dev, infra, meeting, meeting-alt, meeting-3, or dns
+
 ds      = sys.argv[1]
 start   = sys.argv[2]
 irctype = sys.argv[3]
@@ -100,11 +105,10 @@ elif irctype == 'dns':
     if not os.path.exists(directory):
         os.makedirs(directory)
 else:
-    print("invalid irc type, must be one of openstack, dev, infra, meeting, meeting-alt, meeting-3, or dns")
-    
-    
+    print("invalid irc type")
+
 if irctype == 'openstack':
-    friendly= 'openstack IRC Logs'
+    friendly = 'openstack IRC Logs'
 else:
     friendly = 'openstack-' + directory + ' IRC Logs '
 
@@ -114,19 +118,19 @@ endDate     = datetime.date.today()
 dateDonated = datetime.datetime.now()
 
 # databases
-db1 = pymysql.connect(host="grid6.cs.elon.edu", 
-                      user="megan", 
-                      passwd=pw, 
-                      db="ossmole_merged", 
-                      use_unicode=True, 
-                      charset = "utf8")
-cursor1 = db1.cursor()
-db2 = pymysql.connect(host="flossdata.syr.edu",
-                      user="megan", 
+db1 = pymysql.connect(host="grid6.cs.elon.edu",
+                      user="megan",
                       passwd=pw,
                       db="ossmole_merged",
                       use_unicode=True,
-                      charset = "utf8")
+                      charset="utf8")
+cursor1 = db1.cursor()
+db2 = pymysql.connect(host="flossdata.syr.edu",
+                      user="megan",
+                      passwd=pw,
+                      db="ossmole_merged",
+                      use_unicode=True,
+                      charset="utf8")
 cursor2 = db2.cursor()
 
 while(startDate != endDate):
@@ -134,14 +138,14 @@ while(startDate != endDate):
     date = datetime.date.isoformat(startDate)
     url = urlstem + date + ".log"
     print("Working on...", url)
-    
+
     try:
         html = urllib2.urlopen(url).read()
         fileloc = directory + '/' + date + '.txt'
         out = codecs.open(fileloc, "w")
         out.write(str(html))
         out.close
-        
+
         insertQuery = "INSERT INTO datasources(datasource_id, \
                 forge_id, \
                 friendly_name, \
@@ -151,26 +155,26 @@ while(startDate != endDate):
                 start_date, \
                 end_date)  \
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
-        dataValues = (str(newds), 
-                forge_id,
-                friendly+date,
-                str(dateDonated),
-                'msquire@elon.edu', 
-                fileloc, 
-                str(endDate), 
-                str(endDate))
-                
+        dataValues = (str(newds),
+                      forge_id,
+                      friendly+date,
+                      str(dateDonated),
+                      'msquire@elon.edu',
+                      fileloc,
+                      str(endDate),
+                      str(endDate))
+        
         # put new datasource_id in databases (local and remote)
         try:
             cursor1.execute(insertQuery, dataValues)
-            db1.commit() 
+            db1.commit()
         except pymysql.Error as error:
             print(error)
             db1.rollback()
 
         try:
             cursor2.execute(insertQuery, dataValues)
-            db2.commit() 
+            db2.commit()
         except pymysql.Error as error:
             print(error)
             db2.rollback()
@@ -178,7 +182,7 @@ while(startDate != endDate):
         # increment for the next file
         startDate = startDate + datetime.timedelta(days=1)
         newds += 1
-        
+
     except urllib2.HTTPError:
         # increment for the next file
         startDate = startDate + datetime.timedelta(days=1)
